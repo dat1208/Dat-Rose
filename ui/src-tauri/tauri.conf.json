@@ -35,9 +35,9 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/OWNER/REPO/releases/latest/download/latest.json"
+        "https://github.com/dat1208/Dat-Rose/releases/latest/download/latest.json"
       ],
-      "pubkey": "PUBLIC_KEY_HERE"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBNjhBQTUzMDNDQjFFNzUKUldSMUhzc0RVNnBvK21DaXhKUTVvZU4zTUtDN3dRLzRySCtHNWdaQXlkaUQ3M2c5NUM3d2xERHoK"
     }
   }
 }
