@@ -43,7 +43,7 @@ export function Dashboard({ status, error }: { status: Status | null; error?: st
     return (
       <section>
         <h2>Dashboard</h2>
-        <p className="subtitle">Preparing D-Changer…</p>
+        <p className="subtitle">Preparing Dat-Rose…</p>
         <div className="card">
           <h3>{startup.message}</h3>
           {startup.detail && <p className="muted">{startup.detail}</p>}

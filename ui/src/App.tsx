@@ -60,7 +60,7 @@ export function App() {
       <aside className="sidebar">
         <div className="brand">
           <img className="mark" src={logo} alt="" />
-          <h1>D-Changer</h1>
+          <h1>Dat-Rose</h1>
         </div>
         <nav>
           <button className={tab === "dashboard" ? "active" : ""} onClick={() => setTab("dashboard")}>

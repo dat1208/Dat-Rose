@@ -1,4 +1,4 @@
-// D-Changer desktop shell.
+// Dat-Rose desktop shell.
 //
 // Hide the console window in release builds: without this, the windowed app
 // still opens a black console behind it.
@@ -218,7 +218,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building the D-Changer window")
+        .expect("error while building the Dat-Rose window")
         .run(|app_handle, event| {
             if let RunEvent::Exit = event {
                 if let Some(handle) = app_handle.state::<EngineProcess>().0.lock().unwrap().take() {

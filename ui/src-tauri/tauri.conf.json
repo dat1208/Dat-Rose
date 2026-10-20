@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "D-Changer",
+  "productName": "Dat-Rose",
   "version": "0.1.0",
   "identifier": "com.dchanger.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "D-Changer",
+        "title": "Dat-Rose",
         "width": 900,
         "height": 620,
         "resizable": true,
