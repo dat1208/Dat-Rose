@@ -64,5 +64,5 @@ jobs:
           files: |
             ui/src-tauri/target/release/bundle/nsis/*.exe
             ui/src-tauri/target/release/bundle/nsis/*.sig
-            ui/src-tauri/target/release/bundle/nsis/latest.json
+            ui/src-tauri/target/release/bundle/**/latest.json
           generate_release_notes: true

@@ -150,10 +150,22 @@ backend/dist/
 backend/*.spec.bak
 
 # D-Changer backend: vendored binaries are rebuilt/downloaded, not committed
-backend/Pengu Loader/
-backend/injection/tools/*.exe
-backend/injection/tools/*.dll
-backend/injection/tools/*.stub
+#
+# Pengu Loader's runtime (plugins, core.dll, the WPF DLLs) is committed: the
+# engine reads it from the bundle and never downloads it. Pengu Loader.exe is
+# rebuilt from backend/vendor/PenguLoader-1.1.6 during a packaged build, so it
+# stays ignored. Its per-user state (config, datastore) and logs stay ignored.
+backend/Pengu Loader/Pengu Loader.exe
+backend/Pengu Loader/Pengu Loader.exe.config
+backend/Pengu Loader/config
+backend/Pengu Loader/datastore
+backend/Pengu Loader/*.log
+backend/Pengu Loader/*.log.old
+# cslol-dll.dll is Rose's stand-in (built from native/cslol_stub); mod-tools.exe
+# will not start without it, so it is committed alongside its .stub copy.
+backend/injection/tools/mod-tools.exe
+backend/injection/tools/ltk_patcher_host.exe
+backend/injection/tools/ltk_patcher_dll.dll
 backend/injection/tools/hashes.game.txt
 backend/injection/tools/.hashes_state.json
 backend/config.ini
