@@ -158,9 +158,10 @@ backend/Pengu Loader/config
 backend/Pengu Loader/datastore
 backend/Pengu Loader/*.log
 backend/Pengu Loader/*.log.old
-# cslol-dll.dll is Rose's stand-in (built from native/cslol_stub); mod-tools.exe
-# will not start without it, so it is committed alongside its .stub copy.
-backend/injection/tools/mod-tools.exe
+# cslol-dll.dll is Rose's stand-in (built from native/cslol_stub) and
+# mod-tools.exe is the CSLOL overlay tool: both are committed, the engine reads
+# them from the bundle and never downloads them. The LTK patcher and the game
+# hashes are fetched at runtime, so they stay ignored.
 backend/injection/tools/ltk_patcher_host.exe
 backend/injection/tools/ltk_patcher_dll.dll
 backend/injection/tools/hashes.game.txt
