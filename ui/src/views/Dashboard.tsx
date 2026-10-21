@@ -1,4 +1,5 @@
 import type { Status } from "../api";
+import { useI18n } from "../i18n";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -14,14 +15,16 @@ function Pill({ on, onText = "ready", offText = "pending" }: { on: boolean; onTe
 }
 
 export function Dashboard({ status, error }: { status: Status | null; error?: string | null }) {
+  const { t } = useI18n();
+
   if (error) {
     return (
       <section>
-        <h2>Dashboard</h2>
-        <p className="subtitle">Live view of the engine.</p>
+        <h2>{t("Dashboard")}</h2>
+        <p className="subtitle">{t("Live view of the engine.")}</p>
         <div className="card">
-          <p className="bad">Cannot reach the engine: {error}</p>
-          <p className="muted">Is the engine running? Check the Logs tab.</p>
+          <p className="bad">{t("Cannot reach the engine: {error}", { error })}</p>
+          <p className="muted">{t("Is the engine running? Check the Logs tab.")}</p>
         </div>
       </section>
     );
@@ -29,9 +32,9 @@ export function Dashboard({ status, error }: { status: Status | null; error?: st
   if (!status) {
     return (
       <section>
-        <h2>Dashboard</h2>
-        <p className="subtitle">Live view of the engine.</p>
-        <p className="muted">Waiting for the engine…</p>
+        <h2>{t("Dashboard")}</h2>
+        <p className="subtitle">{t("Live view of the engine.")}</p>
+        <p className="muted">{t("Waiting for the engine…")}</p>
       </section>
     );
   }
@@ -42,8 +45,8 @@ export function Dashboard({ status, error }: { status: Status | null; error?: st
   if (startup && !startup.ready) {
     return (
       <section>
-        <h2>Dashboard</h2>
-        <p className="subtitle">Preparing Dat-Rose…</p>
+        <h2>{t("Dashboard")}</h2>
+        <p className="subtitle">{t("Preparing Dat-Rose…")}</p>
         <div className="card">
           <h3>{startup.message}</h3>
           {startup.detail && <p className="muted">{startup.detail}</p>}
@@ -63,26 +66,26 @@ export function Dashboard({ status, error }: { status: Status | null; error?: st
 
   return (
     <section>
-      <h2>Dashboard</h2>
-      <p className="subtitle">Live view of the engine.</p>
+      <h2>{t("Dashboard")}</h2>
+      <p className="subtitle">{t("Live view of the engine.")}</p>
 
       <div className="card">
-        <h3>Session</h3>
-        <Row label="App" value={`${status.app} ${status.version}`} />
-        <Row label="Phase" value={status.phase || "—"} />
-        <Row label="Game mode" value={status.current_game_mode || "—"} />
-        <Row label="Locked champion" value={status.locked_champion_id ?? "—"} />
-        <Row label="Selected skin" value={status.selected_skin_id ?? "—"} />
-        <Row label="Historic mode" value={<Pill on={!!status.historic_mode_active} onText="on" offText="off" />} />
-        <Row label="Random mode" value={<Pill on={!!status.random_mode_active} onText="on" offText="off" />} />
-        {!inGame && <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>Enter a champ select to pick a skin.</p>}
+        <h3>{t("Session")}</h3>
+        <Row label={t("App")} value={`${status.app} ${status.version}`} />
+        <Row label={t("Phase")} value={status.phase || "—"} />
+        <Row label={t("Game mode")} value={status.current_game_mode || "—"} />
+        <Row label={t("Locked champion")} value={status.locked_champion_id ?? "—"} />
+        <Row label={t("Selected skin")} value={status.selected_skin_id ?? "—"} />
+        <Row label={t("Historic mode")} value={<Pill on={!!status.historic_mode_active} onText={t("on")} offText={t("off")} />} />
+        <Row label={t("Random mode")} value={<Pill on={!!status.random_mode_active} onText={t("on")} offText={t("off")} />} />
+        {!inGame && <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>{t("Enter a champ select to pick a skin.")}</p>}
       </div>
 
       {status.downloads && (
         <div className="card">
-          <h3>Downloads</h3>
-          <Row label="Skins" value={<Pill on={status.downloads.skins_downloaded} />} />
-          <Row label="Previews" value={<Pill on={status.downloads.previews_downloaded} />} />
+          <h3>{t("Downloads")}</h3>
+          <Row label={t("Skins")} value={<Pill on={status.downloads.skins_downloaded} onText={t("ready")} offText={t("pending")} />} />
+          <Row label={t("Previews")} value={<Pill on={status.downloads.previews_downloaded} onText={t("ready")} offText={t("pending")} />} />
         </div>
       )}
     </section>

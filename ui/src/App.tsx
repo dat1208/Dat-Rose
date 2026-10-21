@@ -4,12 +4,15 @@ import { Dashboard } from "./views/Dashboard";
 import { Profiles } from "./views/Profiles";
 import { Diagnostics } from "./views/Diagnostics";
 import { Logs } from "./views/Logs";
+import { FailedSkins } from "./views/FailedSkins";
 import { checkForUpdate, installUpdate, type UpdateInfo } from "./updater";
+import { useI18n } from "./i18n";
 import logo from "./assets/logo.png";
 
-type Tab = "dashboard" | "profiles" | "diagnostics" | "logs";
+type Tab = "dashboard" | "profiles" | "failed" | "diagnostics" | "logs";
 
 export function App() {
+  const { t, language, setLanguage } = useI18n();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +56,7 @@ export function App() {
   };
 
   const engineState = error ? "bad" : status?.engine_ready ? "good" : "warn";
-  const engineLabel = error ? "Engine offline" : status?.engine_ready ? "Engine ready" : "Starting…";
+  const engineLabel = error ? t("Engine offline") : status?.engine_ready ? t("Engine ready") : t("Starting…");
 
   return (
     <div className="app">
@@ -64,18 +67,32 @@ export function App() {
         </div>
         <nav>
           <button className={tab === "dashboard" ? "active" : ""} onClick={() => setTab("dashboard")}>
-            Dashboard
+            {t("Dashboard")}
           </button>
           <button className={tab === "profiles" ? "active" : ""} onClick={() => setTab("profiles")}>
-            Profiles
+            {t("Profiles")}
+          </button>
+          <button className={tab === "failed" ? "active" : ""} onClick={() => setTab("failed")}>
+            {t("Failed skins")}
           </button>
           <button className={tab === "diagnostics" ? "active" : ""} onClick={() => setTab("diagnostics")}>
-            Diagnostics
+            {t("Diagnostics")}
           </button>
           <button className={tab === "logs" ? "active" : ""} onClick={() => setTab("logs")}>
-            Logs
+            {t("Logs")}
           </button>
         </nav>
+        <div className="lang-switch">
+          <label htmlFor="lang">{t("Language")}</label>
+          <select
+            id="lang"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as "en" | "vi")}
+          >
+            <option value="en">{t("English")}</option>
+            <option value="vi">{t("Tiếng Việt")}</option>
+          </select>
+        </div>
         <div className="engine-state">
           <span className={`dot ${engineState}`} />
           <span className={engineState}>{engineLabel}</span>
@@ -84,16 +101,15 @@ export function App() {
       <main className="content">
         {update && (
           <div className="update-banner">
-            <span>
-              Version <strong>{update.version}</strong> is available.
-            </span>
+            <span>{t("Version {version} is available.", { version: update.version })}</span>
             <button onClick={applyUpdate} disabled={updating}>
-              {updating ? "Updating…" : "Update now"}
+              {updating ? t("Updating…") : t("Update now")}
             </button>
           </div>
         )}
         {tab === "dashboard" && <Dashboard status={status} error={error} />}
         {tab === "profiles" && <Profiles />}
+        {tab === "failed" && <FailedSkins />}
         {tab === "diagnostics" && <Diagnostics />}
         {tab === "logs" && <Logs />}
       </main>

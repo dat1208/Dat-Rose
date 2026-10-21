@@ -151,12 +151,9 @@ backend/*.spec.bak
 
 # D-Changer backend: vendored binaries are rebuilt/downloaded, not committed
 #
-# Pengu Loader's runtime (plugins, core.dll, the WPF DLLs) is committed: the
-# engine reads it from the bundle and never downloads it. Pengu Loader.exe is
-# rebuilt from backend/vendor/PenguLoader-1.1.6 during a packaged build, so it
-# stays ignored. Its per-user state (config, datastore) and logs stay ignored.
-backend/Pengu Loader/Pengu Loader.exe
-backend/Pengu Loader/Pengu Loader.exe.config
+# Pengu Loader's runtime (Pengu Loader.exe, core.dll, the WPF DLLs, plugins) is
+# committed: the engine reads it from the bundle and never downloads it. Its
+# per-user state (config, datastore) and logs stay ignored.
 backend/Pengu Loader/config
 backend/Pengu Loader/datastore
 backend/Pengu Loader/*.log

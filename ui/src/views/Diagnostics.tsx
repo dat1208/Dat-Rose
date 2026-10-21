@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { api, type Updates } from "../api";
 import { checkForUpdate, installUpdate, type UpdateInfo } from "../updater";
+import { useI18n } from "../i18n";
 
 export function Diagnostics() {
+  const { t } = useI18n();
   const [updates, setUpdates] = useState<Updates | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function Diagnostics() {
     try {
       const info = await checkForUpdate();
       setAppUpdate(info);
-      setUpdateMsg(info ? `Version ${info.version} is available.` : "You are up to date.");
+      setUpdateMsg(info ? t("Version {version} is available.", { version: info.version }) : t("You are up to date."));
     } catch (e) {
       setUpdateMsg(e instanceof Error ? e.message : String(e));
     } finally {
@@ -46,13 +48,13 @@ export function Diagnostics() {
 
   const doUpdate = async () => {
     setUpdateBusy(true);
-    setUpdateMsg("Downloading update…");
+    setUpdateMsg(t("Downloading update…"));
     try {
       await installUpdate((done, total) => {
-        setUpdateMsg(total ? `Downloading… ${Math.round((done / total) * 100)}%` : "Downloading…");
+        setUpdateMsg(total ? t("Downloading… {percent}%", { percent: Math.round((done / total) * 100) }) : t("Downloading…"));
       });
       // relaunch() restarts the app, so this only runs if it did not.
-      setUpdateMsg("Update installed. Restarting…");
+      setUpdateMsg(t("Update installed. Restarting…"));
     } catch (e) {
       setUpdateMsg(e instanceof Error ? e.message : String(e));
       setUpdateBusy(false);
@@ -61,26 +63,26 @@ export function Diagnostics() {
 
   return (
     <section>
-      <h2>Diagnostics</h2>
-      <p className="subtitle">Problems the engine hit, and the versions it tracks.</p>
+      <h2>{t("Diagnostics")}</h2>
+      <p className="subtitle">{t("Problems the engine hit, and the versions it tracks.")}</p>
 
       <div className="card">
-        <h3>App update</h3>
+        <h3>{t("App update")}</h3>
         {updateMsg && <p className="muted">{updateMsg}</p>}
         <div className="logbar">
           <button className="ghost" onClick={checkApp} disabled={updateBusy}>
-            Check for updates
+            {t("Check for updates")}
           </button>
           {appUpdate && (
             <button onClick={doUpdate} disabled={updateBusy}>
-              Install {appUpdate.version}
+              {t("Install {version}", { version: appUpdate.version })}
             </button>
           )}
         </div>
       </div>
 
       <div className="card">
-        <h3>Problems</h3>
+        <h3>{t("Problems")}</h3>
         {issues.length ? (
           <ul className="issues">
             {issues.map((line, i) => (
@@ -90,13 +92,13 @@ export function Diagnostics() {
             ))}
           </ul>
         ) : (
-          <p className="muted">No problems reported.</p>
+          <p className="muted">{t("No problems reported.")}</p>
         )}
       </div>
 
       <div className="card">
-        <h3>Upstream versions</h3>
-        {loading && <p className="muted">Checking…</p>}
+        <h3>{t("Upstream versions")}</h3>
+        {loading && <p className="muted">{t("Checking…")}</p>}
         {error && <p className="bad">{error}</p>}
         {updates && (
           <ul className="kv">
@@ -107,10 +109,9 @@ export function Diagnostics() {
           </ul>
         )}
         <button className="ghost" onClick={check} disabled={loading}>
-          Re-check
+          {t("Re-check")}
         </button>
       </div>
     </section>
   );
 }
-

@@ -61,6 +61,15 @@ export interface DiagnosticsResponse {
   issues: string[];
 }
 
+export interface FailedSkin {
+  path: string;
+  reason: string;
+}
+
+export interface FailedSkinsResponse {
+  files: FailedSkin[];
+}
+
 // A failed invoke rejects with the Rust error string; normalise it to Error.
 function toError(e: unknown): Error {
   return e instanceof Error ? e : new Error(String(e));
@@ -88,6 +97,9 @@ export const api = {
   account: () => get<Account>("/api/account"),
   updates: () => get<Updates>("/api/updates"),
   diagnostics: () => get<DiagnosticsResponse>("/api/diagnostics"),
+  failedSkins: () => get<FailedSkinsResponse>("/api/skins/failed"),
+  retrySkin: (path: string) =>
+    post<{ retried: boolean; path: string }>("/api/skins/retry", { path }),
   saveProfile: (puuid: string, name: string) =>
     post<{ puuid: string; name: string }>("/api/profiles/save", { puuid, name }),
   loadProfile: (puuid: string) =>

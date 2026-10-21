@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import { useI18n } from "../i18n";
 
 export function Logs() {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [auto, setAuto] = useState(true);
@@ -35,17 +37,17 @@ export function Logs() {
 
   return (
     <section>
-      <h2>Logs</h2>
-      <p className="subtitle">Live engine output, newest at the bottom.</p>
+      <h2>{t("Logs")}</h2>
+      <p className="subtitle">{t("Live engine output, newest at the bottom.")}</p>
       <div className="logbar">
-        <button className="ghost" onClick={refresh}>Refresh</button>
+        <button className="ghost" onClick={refresh}>{t("Refresh")}</button>
         <label>
-          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Auto
+          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> {t("Auto")}
         </label>
       </div>
       {error && <p className="bad">{error}</p>}
       <pre className="logs" ref={boxRef}>
-        {text || "No log output yet."}
+        {text || t("No log output yet.")}
       </pre>
     </section>
   );

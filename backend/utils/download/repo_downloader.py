@@ -55,6 +55,11 @@ class RepoDownloader:
         })
         self.progress_callback = progress_callback
         self.last_extraction_failures = 0
+        # Per-file failures from the last sync, so the UI can list and retry
+        # them instead of leaving them only in the log. Written to
+        # failed_skins.json next to the skins.
+        self.failed_files: List[Dict] = []
+        self.failed_state_file = self.target_dir / "failed_skins.json"
 
         # Rift Classic skins (the repository's classic/ folder), next to the skins
         self.classic_dir = get_classic_skins_dir() if target_dir is None else self.target_dir.parent / "classic"
@@ -74,6 +79,74 @@ class RepoDownloader:
             return
         bounded = max(0.0, min(percent, 100.0))
         self.progress_callback(int(bounded), message)
+
+    def _record_failure(self, filename: str, reason: str) -> None:
+        """Remember a file that failed to download or extract, for the UI."""
+        self.failed_files.append({"path": filename, "reason": reason})
+
+    def _write_failed_state(self) -> None:
+        """Persist the failed-file list so the UI can show and retry it.
+
+        A successful sync with no failures clears the file.
+        """
+        try:
+            if self.failed_files:
+                write_text_atomic(
+                    self.failed_state_file,
+                    json.dumps({"files": self.failed_files}, ensure_ascii=False, indent=2),
+                )
+            elif self.failed_state_file.exists():
+                self.failed_state_file.unlink()
+        except OSError as e:
+            log.warning(f"Failed to write the failed-skins state: {e}")
+
+    def _reset_failed_state(self) -> None:
+        self.failed_files = []
+
+    def retry_failed_file(self, repo_path: str) -> bool:
+        """Re-download a single failed file from the repository.
+
+        ``repo_path`` is the repo-relative path recorded in failed_skins.json
+        (e.g. "skins/Ahri/103000/103000.zip"). On success the file is removed
+        from the failed list and the state file is rewritten.
+        """
+        local_path = self._resolve_local_path(repo_path)
+        if local_path is None:
+            log.warning(f"Cannot retry {repo_path}: path is outside the target folder")
+            return False
+        raw_url = f"{self.raw_base}/{repo_path}"
+        try:
+            resp = self.session.get(raw_url, stream=True, timeout=SKIN_DOWNLOAD_STREAM_TIMEOUT_S)
+            resp.raise_for_status()
+            with atomic_write(local_path, 'wb', durable=False) as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+        except (requests.RequestException, OSError) as e:
+            log.warning(f"Retry failed for {repo_path}: {e}")
+            return False
+
+        self._remove_from_failed_state(repo_path)
+        log.info(f"Retried and downloaded {repo_path}")
+        return True
+
+    def _remove_from_failed_state(self, repo_path: str) -> None:
+        """Drop one path from failed_skins.json after a successful retry."""
+        try:
+            if not self.failed_state_file.exists():
+                return
+            data = json.loads(self.failed_state_file.read_text(encoding="utf-8"))
+            files = [f for f in data.get("files", []) if f.get("path") != repo_path]
+            if files:
+                write_text_atomic(
+                    self.failed_state_file,
+                    json.dumps({"files": files}, ensure_ascii=False, indent=2),
+                )
+            else:
+                self.failed_state_file.unlink()
+        except (OSError, ValueError) as e:
+            log.warning(f"Failed to update the failed-skins state: {e}")
+
     
     def fetch_remote_sha(self) -> Optional[str]:
         """Fetch the latest commit SHA from the skin repo via GitHub API (1 API call)."""
@@ -238,6 +311,7 @@ class RepoDownloader:
             except (requests.RequestException, OSError) as e:
                 log.warning(f"Failed to download {filename}: {e}")
                 fail_count += 1
+                self._record_failure(filename, str(e))
 
             progress = 10 + int(80 * idx / total)
             self._emit_progress(progress, f"Updating files... {idx}/{total}")
@@ -635,6 +709,7 @@ class RepoDownloader:
                     except Exception as e:
                         log.warning(f"Failed to extract {file_info.filename}: {e}")
                         failed_count += 1
+                        self._record_failure(file_info.filename, str(e))
                         processed_bytes += _info_size(file_info) or 1
                         update_progress("Extracting...")
 
@@ -693,6 +768,7 @@ class RepoDownloader:
     
     def download_incremental_updates(self, force_update: bool = False) -> bool:
         """Check for updates via commit SHA and download incrementally if possible."""
+        self._reset_failed_state()
         try:
             self._emit_progress(0, "Checking for skin updates...")
 
@@ -727,6 +803,7 @@ class RepoDownloader:
                     success = self.download_changed_files(changed_files)
                     if success:
                         self.save_local_sha(remote_sha)
+                        self._write_failed_state()
                         self._emit_progress(100, "Skins updated")
                         return True
                     else:
@@ -745,6 +822,7 @@ class RepoDownloader:
     
     def download_and_extract_skins(self, force_update: bool = False, remote_sha: Optional[str] = None) -> bool:
         """Download repository ZIP and extract skins + resources"""
+        self._reset_failed_state()
         try:
             self._emit_progress(0, "Preparing download...")
             # Pin the commit before downloading: a commit pushed mid-download must not be recorded as synced
@@ -781,6 +859,7 @@ class RepoDownloader:
                     else:
                         log.warning("Skin sync incomplete; repository version not recorded")
 
+                self._write_failed_state()
                 if success:
                     self._emit_progress(100, "Skins ready")
                     return True

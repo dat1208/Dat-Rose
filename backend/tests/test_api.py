@@ -68,6 +68,33 @@ class ApiTests(unittest.TestCase):
         self.assertIn("issues", data)
         self.assertIsInstance(data["issues"], list)
 
+    def test_failed_skins_route_empty_without_state(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("utils.core.paths.get_skins_dir", return_value=Path(tmp)):
+                status, data = self._get("/api/skins/failed")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["files"], [])
+
+    def test_failed_skins_route_reads_state(self):
+        import json as _json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "failed_skins.json").write_text(
+                _json.dumps({"files": [{"path": "skins/Ahri/103000/103000.zip", "reason": "boom"}]}),
+                encoding="utf-8",
+            )
+            with patch("utils.core.paths.get_skins_dir", return_value=Path(tmp)):
+                status, data = self._get("/api/skins/failed")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["files"][0]["path"], "skins/Ahri/103000/103000.zip")
+
     def test_options_preflight_allowed(self):
         request = urllib.request.Request(self.base + "/api/profiles/save", method="OPTIONS")
         request.add_header("Origin", "http://localhost:1420")

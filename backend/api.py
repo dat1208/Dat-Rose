@@ -177,6 +177,35 @@ def _diagnostics(ctx: ApiContext) -> dict:
 
     return {"issues": read_issues_tail(max_lines=40)}
 
+def _failed_skins(ctx: ApiContext) -> dict:
+    """Skins that failed to download or extract during the last sync.
+
+    The downloader writes them to failed_skins.json next to the skins; the UI
+    lists them and can retry each one instead of only logging the failure.
+    """
+    from utils.core.paths import get_skins_dir
+
+    state_file = get_skins_dir() / "failed_skins.json"
+    if not state_file.exists():
+        return {"files": []}
+    try:
+        data = json.loads(state_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        log.warning(f"[api] Could not read the failed-skins state: {e}")
+        return {"files": []}
+    files = data.get("files", []) if isinstance(data, dict) else []
+    return {"files": files}
+
+def _retry_skin(ctx: ApiContext, body: dict) -> dict:
+    """Re-download one failed skin by its repository path."""
+    from utils.download.repo_downloader import RepoDownloader
+
+    path = str(body.get("path", "")).strip()
+    if not path:
+        raise ValueError("path is required")
+    ok = RepoDownloader().retry_failed_file(path)
+    return {"retried": ok, "path": path}
+
 
 def _shutdown(ctx: ApiContext, body: dict) -> dict:
     """Ask the engine to stop, so the UI can close it cleanly.
@@ -201,12 +230,14 @@ _GET_ROUTES: dict[str, Callable[[ApiContext], Any]] = {
     "/api/account": _account,
     "/api/updates": _updates,
     "/api/diagnostics": _diagnostics,
+    "/api/skins/failed": _failed_skins,
 }
 
 _POST_ROUTES: dict[str, Callable[[ApiContext, dict], Any]] = {
     "/api/profiles/save": _profile_save,
     "/api/profiles/load": _profile_load,
     "/api/profiles/delete": _profile_delete,
+    "/api/skins/retry": _retry_skin,
     "/api/shutdown": _shutdown,
 }
 
