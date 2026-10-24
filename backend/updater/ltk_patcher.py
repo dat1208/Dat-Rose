@@ -37,6 +37,7 @@ from injection.tools.patcher import (
     LTK_PATCHER_HOST,
     check_ltk_patcher,
     read_dll_eol,
+    read_game_build,
 )
 
 from . import sources, verify
@@ -157,8 +158,23 @@ def _run_silent_uninstall(install_dir: Path) -> None:
         log.debug(f"Could not uninstall LTK Manager after copying the patcher: {e}")
 
 
+def _verifies_host(dll: Path) -> bool:
+    """True when the DLL checks that its host is the official LTK Manager.
+
+    Newer patcher DLLs refuse to overlay unless the pipe server that handed
+    them the handshake is ltk-manager.exe itself ("host verification failed,
+    refusing overlay"). Rose runs ltk_patcher_host.exe directly, so such a DLL
+    rejects every overlay it is asked to apply. Keep the older DLL that only
+    checks the game build instead of replacing it with a newer one.
+    """
+    try:
+        return b"host verification failed" in dll.read_bytes()
+    except OSError:
+        return False
+
+
 def fetch_patcher(tools_dir: Path, force: bool = False) -> Path:
-    """Make sure tools_dir holds a current LTK patcher; return the tools dir.
+    """Make sure tools_dir holds a usable LTK patcher; return the tools dir.
 
     Args:
         tools_dir: Where ltk_patcher_host.exe and ltk_patcher_dll.dll go.
@@ -200,6 +216,12 @@ def fetch_patcher(tools_dir: Path, force: bool = False) -> Path:
         raise PatcherInstallError(
             "The LTK Manager installer ran but no patcher files were found in it"
         )
+    if _verifies_host(found / LTK_PATCHER_DLL):
+        _run_silent_uninstall(_INSTALL_DIR)
+        raise PatcherInstallError(
+            f"LTK Manager {release.tag if release else ''} ships a patcher that only runs "
+            "under LTK Manager itself; keep the previous patcher files".rstrip()
+        )
     _copy_patcher(found, tools_dir)
     _run_silent_uninstall(_INSTALL_DIR)
 
@@ -207,7 +229,21 @@ def fetch_patcher(tools_dir: Path, force: bool = False) -> Path:
     return tools_dir
 
 
-def patcher_is_stale(tools_dir: Path) -> bool:
-    """True when the installed DLL's EOL date is in the past (needs replacing)."""
-    eol = read_dll_eol(Path(tools_dir) / LTK_PATCHER_DLL)
-    return eol is not None and eol < time.time()
+def patcher_is_stale(tools_dir: Path, game_dir: Optional[Path] = None) -> bool:
+    """True when the installed DLL refuses the game it will be used with.
+
+    The EOL date is compared against the game executable's build timestamp, not
+    against the wall clock: a DLL past its date keeps working until League
+    itself updates, which is exactly what the DLL checks at runtime.
+
+    A DLL that verifies its host is never "stale": replacing it would only get
+    another host-verifying DLL that Rose cannot use.
+    """
+    dll = Path(tools_dir) / LTK_PATCHER_DLL
+    if _verifies_host(dll):
+        return False
+    if game_dir is None:
+        return False
+    eol = read_dll_eol(dll)
+    build = read_game_build(Path(game_dir))
+    return eol is not None and build is not None and build > eol

@@ -28,14 +28,26 @@ def _tools_dir() -> Path:
     import sys
 
     if getattr(sys, "frozen", False):
-        if hasattr(sys, "_MEIPASS"):
-            return Path(sys._MEIPASS) / "injection" / "tools"
+        # Resolve from the running executable: in onedir builds sys._MEIPASS is
+        # the builder's _internal folder, so an installed copy would look for
+        # its tools on the build machine.
         base_dir = Path(sys.executable).parent
-        for candidate in (base_dir / "injection" / "tools", base_dir / "_internal" / "injection" / "tools"):
+        for candidate in (base_dir / "_internal" / "injection" / "tools", base_dir / "injection" / "tools"):
             if candidate.exists():
                 return candidate
-        return base_dir / "injection" / "tools"
+        return base_dir / "_internal" / "injection" / "tools"
     return Path(__file__).parent.parent.parent / "injection" / "tools"
+
+
+def _game_dir():
+    """The League game folder from config, or None when it is not set yet."""
+    try:
+        from config import get_config_option
+
+        path = get_config_option("General", "leaguePath")
+        return Path(path) if path else None
+    except Exception:  # noqa: BLE001 - config is best effort here
+        return None
 
 
 class PatcherSequence:
@@ -58,7 +70,7 @@ class PatcherSequence:
 
         tools_dir = _tools_dir()
         try:
-            force = ltk_patcher.patcher_is_stale(tools_dir)
+            force = ltk_patcher.patcher_is_stale(tools_dir, _game_dir())
             if force:
                 dialog.set_status("Updating the LTK patcher...")
                 dialog.pump_messages()
