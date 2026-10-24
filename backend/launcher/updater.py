@@ -7,16 +7,17 @@ as a frozen executable.
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from .update.update_sequence import UpdateSequence
+
 
 # Backward compatibility - maintain the auto_update function signature
 def auto_update(
     status_callback: Callable[[str], None],
     progress_callback: Callable[[int], None],
-    bytes_callback: Optional[Callable[[int, Optional[int]], None]] = None,
-    confirm_callback: Optional[Callable[[str, str], bool]] = None,
+    bytes_callback: Callable[[int, int | None], None] | None = None,
+    confirm_callback: Callable[[str, str], bool] | None = None,
 ) -> bool:
     """Download and install the latest release if a new version is available.
 

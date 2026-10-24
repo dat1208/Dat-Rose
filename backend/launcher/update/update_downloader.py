@@ -6,8 +6,8 @@ Handles downloading update files from GitHub releases
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 import requests
 
@@ -28,8 +28,8 @@ class UpdateDownloader:
         url: str,
         target: Path,
         timeout: int,
-        expected_size: Optional[int] = None,
-        bytes_callback: Optional[Callable[[int, Optional[int]], None]] = None,
+        expected_size: int | None = None,
+        bytes_callback: Callable[[int, int | None], None] | None = None,
     ) -> None:
         """Stream url into target, raising if the download is incomplete.
 
@@ -56,7 +56,7 @@ class UpdateDownloader:
                         if bytes_callback:
                             bytes_callback(bytes_read, expected_size)
             if expected is not None and bytes_read != expected:
-                raise IOError(f"incomplete download: got {bytes_read} of {expected} bytes")
+                raise OSError(f"incomplete download: got {bytes_read} of {expected} bytes")
             os.replace(part, target)
         finally:
             part.unlink(missing_ok=True)
@@ -66,8 +66,8 @@ class UpdateDownloader:
         download_url: str,
         zip_path: Path,
         status_callback: Callable[[str], None],
-        bytes_callback: Optional[Callable[[int, Optional[int]], None]] = None,
-        total_size: Optional[int] = None,
+        bytes_callback: Callable[[int, int | None], None] | None = None,
+        total_size: int | None = None,
     ) -> bool:
         """Download update ZIP file
         

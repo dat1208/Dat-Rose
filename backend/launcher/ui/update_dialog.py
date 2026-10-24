@@ -9,7 +9,6 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 try:
     from PIL import Image
@@ -20,9 +19,10 @@ from config import APP_VERSION
 from utils.core.logging import get_named_logger
 from utils.core.paths import get_asset_path
 from utils.system.win32_base import (
-    PBS_MARQUEE,
-    PBM_SETRANGE,
+    MAKELPARAM,
     PBM_SETMARQUEE,
+    PBM_SETRANGE,
+    PBS_MARQUEE,
     WS_CAPTION,
     WS_CHILD,
     WS_MINIMIZEBOX,
@@ -30,7 +30,6 @@ from utils.system.win32_base import (
     WS_VISIBLE,
     Win32Window,
     init_common_controls,
-    MAKELPARAM,
     user32,
 )
 
@@ -54,21 +53,21 @@ class UpdateDialog(Win32Window):
         )
         init_common_controls()
         updater_log.info("Update dialog initialized (Win32 window class registered).")
-        self.detail_hwnd: Optional[int] = None
-        self.progress_hwnd: Optional[int] = None
+        self.detail_hwnd: int | None = None
+        self.progress_hwnd: int | None = None
         self._allow_close = False
         self._marquee_enabled = False
         self._current_status = ""
         self._status_text = ""
         self._transfer_text = ""
-        self._icon_temp_path: Optional[str] = None
-        self._icon_source_path: Optional[str] = self._prepare_window_icon()
-        self._transfer_bytes: Optional[int] = None
-        self._transfer_total: Optional[int] = None
+        self._icon_temp_path: str | None = None
+        self._icon_source_path: str | None = self._prepare_window_icon()
+        self._transfer_bytes: int | None = None
+        self._transfer_total: int | None = None
         self._transfer_managed = False
 
-    def on_create(self) -> Optional[int]:
-        client_width, client_height = self.get_client_size()
+    def on_create(self) -> int | None:
+        client_width, _client_height = self.get_client_size()
         margin = 20
         content_width = min(client_width - 2 * margin, 360)
         content_width = max(content_width, 240)
@@ -124,7 +123,7 @@ class UpdateDialog(Win32Window):
             self.set_window_icon(self._icon_source_path)
         return 0
 
-    def on_close(self) -> Optional[int]:
+    def on_close(self) -> int | None:
         if not self._allow_close:
             updater_log.debug("Close requested before completion; ignoring.")
             return 0
@@ -224,8 +223,8 @@ class UpdateDialog(Win32Window):
                 except OSError:
                     pass
 
-    def _prepare_window_icon(self) -> Optional[str]:
-        png_path: Optional[Path] = None
+    def _prepare_window_icon(self) -> str | None:
+        png_path: Path | None = None
         try:
             png_candidate = get_asset_path("tray_ready.png")
             if png_candidate.exists():
@@ -235,7 +234,8 @@ class UpdateDialog(Win32Window):
 
         if png_path is not None and Image is not None:
             try:
-                tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".ico")
+                # Closed at once and reopened by path; a with-block would delete it.
+                tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".ico")  # noqa: SIM115
                 tmp_path = tmp_file.name
                 tmp_file.close()
                 with Image.open(png_path) as img:
@@ -266,7 +266,7 @@ class UpdateDialog(Win32Window):
             return f"{value / 1024:.1f} KB"
         return f"{value / (1024 * 1024):.1f} MB"
 
-    def update_transfer_progress(self, downloaded: int, total: Optional[int]) -> None:
+    def update_transfer_progress(self, downloaded: int, total: int | None) -> None:
         self._transfer_bytes = max(0, downloaded)
         self._transfer_total = total if (total is not None and total > 0) else None
         self._transfer_managed = True
@@ -307,7 +307,7 @@ class UpdateDialog(Win32Window):
             else:
                 text = self._format_bytes(self._transfer_bytes)
             self.set_transfer_text(text)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     def _render_status_text(self) -> None:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Game Hash File Updater
 
@@ -17,12 +16,13 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, Optional
 
 import requests
 
 from config import APP_USER_AGENT, get_config_file_path
+from utils.core.atomic_file import atomic_write
 from utils.core.logging import get_logger, get_named_logger, log_success
 
 log = get_logger()
@@ -43,25 +43,25 @@ def get_state_file() -> Path:
     return get_config_file_path().parent / "hash_updater_state.json"
 
 
-def load_state() -> Dict:
+def load_state() -> dict:
     state_file = get_state_file()
     if not state_file.exists():
         return {}
     try:
         with open(state_file, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         log.warning(f"Failed to load hash updater state: {e}")
         return {}
 
 
-def save_state(state: Dict) -> None:
+def save_state(state: dict) -> None:
     state_file = get_state_file()
     try:
         state_file.parent.mkdir(parents=True, exist_ok=True)
         with open(state_file, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
-    except IOError as e:
+    except OSError as e:
         log.warning(f"Failed to save hash updater state: {e}")
 
 
@@ -74,7 +74,7 @@ def _session() -> requests.Session:
     return session
 
 
-def get_directory_commit_sha(session: requests.Session) -> Optional[str]:
+def get_directory_commit_sha(session: requests.Session) -> str | None:
     """Newest commit SHA that touched hashes/lol (one API call).
 
     Returns None on error or rate limit.
@@ -141,8 +141,8 @@ def check_for_updates(force: bool = False) -> bool:
 def download_file(
     url: str,
     session: requests.Session,
-    status_callback: Optional[Callable[[str], None]] = None,
-) -> Optional[bytes]:
+    status_callback: Callable[[str], None] | None = None,
+) -> bytes | None:
     try:
         filename = url.split("/")[-1]
         if status_callback:
@@ -182,7 +182,7 @@ def _tools_dir() -> Path:
 
 
 def update_hash_files(
-    status_callback: Optional[Callable[[str], None]] = None,
+    status_callback: Callable[[str], None] | None = None,
     dev_mode: bool = False,
 ) -> bool:
     """Check for updates and download/combine hash files if needed.
@@ -227,11 +227,13 @@ def update_hash_files(
 
     try:
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(target_path, "wb") as f:
+        # Atomic: the injection threads read this file while startup runs, and
+        # an in-place rewrite would let them see a truncated copy.
+        with atomic_write(target_path, "wb") as f:
             f.write(combined_content)
         size_mb = len(combined_content) / (1024 * 1024)
         log_success(log, f"Successfully created {TARGET_FILE} ({size_mb:.1f} MB)", "")
-    except IOError as e:
+    except OSError as e:
         log.error(f"Failed to write {TARGET_FILE}: {e}")
         return False
 

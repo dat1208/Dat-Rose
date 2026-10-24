@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Smart Skin Downloader
 Downloads skins efficiently with proper API rate limiting and batch operations
@@ -7,17 +6,26 @@ Downloads skins efficiently with proper API rate limiting and batch operations
 
 import json
 import time
-import requests
 from pathlib import Path
-from typing import List, Dict, Optional
-from utils.core.logging import get_logger
+
+import requests
+
 from config import (
-    RATE_LIMIT_MIN_INTERVAL, RATE_LIMIT_REQUEST_TIMEOUT, RATE_LIMIT_STREAM_TIMEOUT,
-    RATE_LIMIT_LOW_THRESHOLD, RATE_LIMIT_WARNING_50, RATE_LIMIT_WARNING_100,
-    RATE_LIMIT_INITIAL, RATE_LIMIT_DELAY_LOW, RATE_LIMIT_DELAY_MEDIUM,
-    RATE_LIMIT_DELAY_HIGH, RATE_LIMIT_BACKOFF_MULTIPLIER, LOG_CHUNK_SIZE,
-    APP_USER_AGENT
+    APP_USER_AGENT,
+    LOG_CHUNK_SIZE,
+    RATE_LIMIT_BACKOFF_MULTIPLIER,
+    RATE_LIMIT_DELAY_HIGH,
+    RATE_LIMIT_DELAY_LOW,
+    RATE_LIMIT_DELAY_MEDIUM,
+    RATE_LIMIT_INITIAL,
+    RATE_LIMIT_LOW_THRESHOLD,
+    RATE_LIMIT_MIN_INTERVAL,
+    RATE_LIMIT_REQUEST_TIMEOUT,
+    RATE_LIMIT_STREAM_TIMEOUT,
+    RATE_LIMIT_WARNING_50,
+    RATE_LIMIT_WARNING_100,
 )
+from utils.core.logging import get_logger
 
 log = get_logger()
 
@@ -25,7 +33,7 @@ log = get_logger()
 class SmartSkinDownloader:
     """Smart skin downloader with rate limiting and batch operations"""
     
-    def __init__(self, target_dir: Path = None, repo_url: str = "https://github.com/darkseal-org/lol-skins"):
+    def __init__(self, target_dir: Path | None = None, repo_url: str = "https://github.com/darkseal-org/lol-skins"):
         self.repo_url = repo_url
         self.api_base = "https://api.github.com/repos/darkseal-org/lol-skins"
         self.target_dir = target_dir or Path("skins")
@@ -66,7 +74,7 @@ class SmartSkinDownloader:
             # Increase delay when rate limit is low
             self.min_request_interval = max(RATE_LIMIT_DELAY_LOW, self.min_request_interval * RATE_LIMIT_BACKOFF_MULTIPLIER)
     
-    def _make_request(self, url: str, **kwargs) -> Optional[requests.Response]:
+    def _make_request(self, url: str, **kwargs) -> requests.Response | None:
         """Make a rate-limited request"""
         self._wait_for_rate_limit()
         
@@ -79,7 +87,7 @@ class SmartSkinDownloader:
             log.error(f"Request failed for {url}: {e}")
             return None
     
-    def get_repo_contents_batch(self, paths: List[str]) -> Dict[str, List[Dict]]:
+    def get_repo_contents_batch(self, paths: list[str]) -> dict[str, list[dict]]:
         """Get contents of multiple directories in batch"""
         results = {}
         
@@ -98,7 +106,7 @@ class SmartSkinDownloader:
         
         return results
     
-    def get_repo_contents(self, path: str = "skins") -> List[Dict]:
+    def get_repo_contents(self, path: str = "skins") -> list[dict]:
         """Get the contents of a directory from the GitHub repository"""
         url = f"{self.api_base}/contents/{path}"
         
@@ -111,7 +119,7 @@ class SmartSkinDownloader:
                 return []
         return []
     
-    def get_all_champion_data(self) -> Dict[str, List[Dict]]:
+    def get_all_champion_data(self) -> dict[str, list[dict]]:
         """Get all champion data in one batch operation"""
         log.info("Fetching all champion data in batch...")
         
@@ -129,7 +137,7 @@ class SmartSkinDownloader:
         
         return champion_data
     
-    def download_file_batch(self, download_urls: List[str], local_paths: List[Path]) -> List[bool]:
+    def download_file_batch(self, download_urls: list[str], local_paths: list[Path]) -> list[bool]:
         """Download multiple files efficiently"""
         results = []
         
@@ -152,13 +160,13 @@ class SmartSkinDownloader:
                 results.append(True)
                 log.debug(f"Downloaded: {local_path.name}")
                 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 log.error(f"Failed to download {url}: {e}")
                 results.append(False)
         
         return results
     
-    def download_champion_skins_smart(self, champion: str, skin_files: List[Dict], 
+    def download_champion_skins_smart(self, champion: str, skin_files: list[dict], 
                                     force_update: bool = False) -> int:
         """Download all skins for a champion efficiently"""
         champion_dir = self.target_dir / champion
@@ -198,7 +206,7 @@ class SmartSkinDownloader:
         return downloaded_count
     
     def download_all_skins_smart(self, force_update: bool = False, 
-                                max_champions: Optional[int] = None) -> Dict[str, int]:
+                                max_champions: int | None = None) -> dict[str, int]:
         """Download all skins efficiently with smart batching"""
         log.info("Starting smart skin download...")
         
@@ -250,13 +258,13 @@ class SmartSkinDownloader:
                 
                 time.sleep(delay)
                 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 log.error(f"Error processing {champion}: {e}")
                 results[champion] = 0
         
         # Get detailed statistics
         detailed_stats = self.get_detailed_stats()
-        log.info(f"Smart download complete!")
+        log.info("Smart download complete!")
         log.info(f"  Total base skins: {detailed_stats['total_skins']}")
         log.info(f"  Total chromas: {detailed_stats['total_chromas']}")
         log.info(f"  Total skin IDs: {detailed_stats['total_ids']}")
@@ -264,7 +272,7 @@ class SmartSkinDownloader:
         
         return results
     
-    def get_download_stats(self) -> Dict[str, int]:
+    def get_download_stats(self) -> dict[str, int]:
         """Get statistics about downloaded skins (total IDs per champion)"""
         if not self.target_dir.exists():
             return {}
@@ -277,7 +285,7 @@ class SmartSkinDownloader:
 
         return stats
     
-    def get_detailed_stats(self) -> Dict[str, int]:
+    def get_detailed_stats(self) -> dict[str, int]:
         """
         Get detailed statistics categorizing base skins and chromas
         
@@ -317,8 +325,8 @@ class SmartSkinDownloader:
         }
 
 
-def download_skins_smart(target_dir: Path = None, force_update: bool = False, 
-                        max_champions: Optional[int] = None, tray_manager=None) -> bool:
+def download_skins_smart(target_dir: Path | None = None, force_update: bool = False, 
+                        max_champions: int | None = None, tray_manager=None) -> bool:
     """Smart skin download with proper rate limiting"""
     try:
         # Note: tray_manager status is already set by caller (download_skins_on_startup)
@@ -333,7 +341,7 @@ def download_skins_smart(target_dir: Path = None, force_update: bool = False,
                     f"{current_detailed['total_ids']} total skin IDs")
         
         # Download skins with smart batching
-        results = downloader.download_all_skins_smart(force_update, max_champions)
+        downloader.download_all_skins_smart(force_update, max_champions)
         
         # Report final results with detailed stats
         final_detailed = downloader.get_detailed_stats()
@@ -349,6 +357,6 @@ def download_skins_smart(target_dir: Path = None, force_update: bool = False,
         
         return True
         
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.error(f"Smart download failed: {e}")
         return False

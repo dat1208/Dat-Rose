@@ -7,10 +7,16 @@ from __future__ import annotations
 
 import configparser
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
-from config import APP_VERSION, get_config_file_path, read_config_file, write_config_file
+from config import (
+    APP_VERSION,
+    get_config_file_path,
+    read_config_file,
+    write_config_file,
+)
+from updater import verify
 from utils.core.logging import get_logger, get_named_logger
 
 from .github_client import GitHubClient, self_update_enabled
@@ -21,7 +27,7 @@ log = get_logger()
 updater_log = get_named_logger("updater", prefix="log_updater")
 
 
-def _parse_semver_like(version: str) -> Optional[tuple[int, ...]]:
+def _parse_semver_like(version: str) -> tuple[int, ...] | None:
     """
     Parse a semver-like version string into an integer tuple for comparison.
 
@@ -60,7 +66,7 @@ def _parse_semver_like(version: str) -> Optional[tuple[int, ...]]:
     return tuple(parts) if parts else None
 
 
-def _cmp_version(a: Optional[tuple[int, ...]], b: Optional[tuple[int, ...]]) -> Optional[int]:
+def _cmp_version(a: tuple[int, ...] | None, b: tuple[int, ...] | None) -> int | None:
     """Return -1/0/1 if comparable, else None."""
     if a is None or b is None:
         return None
@@ -88,7 +94,7 @@ class UpdateSequence:
         try:
             config.set("General", "installed_version", old_version)
             write_config_file(config, config_path)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             updater_log.warning(
                 f"Failed to revert installed_version in config: {exc}"
             )
@@ -97,9 +103,9 @@ class UpdateSequence:
         self,
         status_callback: Callable[[str], None],
         progress_callback: Callable[[int], None],
-        bytes_callback: Optional[Callable[[int, Optional[int]], None]] = None,
+        bytes_callback: Callable[[int, int | None], None] | None = None,
         dev_mode: bool = False,
-        confirm_callback: Optional[Callable[[str, str], bool]] = None,
+        confirm_callback: Callable[[str, str], bool] | None = None,
     ) -> bool:
         """Perform update check and installation
         
@@ -143,7 +149,7 @@ class UpdateSequence:
         if config_path.exists():
             try:
                 read_config_file(config, config_path)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 updater_log.warning(f"Could not read {config_path}; using defaults for update state: {e}")
         if not config.has_section("General"):
             config.add_section("General")
@@ -178,7 +184,7 @@ class UpdateSequence:
                 config.set("General", "update_retry_count", "0")
                 try:
                     write_config_file(config, config_path)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     updater_log.warning(f"Could not persist update state to {config_path}: {e}")
                 status_callback("Update failed after retries")
                 return False
@@ -194,7 +200,7 @@ class UpdateSequence:
                 config.set("General", "update_retry_count", str(retry_count + 1))
                 try:
                     write_config_file(config, config_path)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     updater_log.warning(f"Could not persist update state to {config_path}: {e}")
 
         # Skip updates for test versions (e.g., version 999)
@@ -210,7 +216,7 @@ class UpdateSequence:
         remote_parsed = _parse_semver_like(remote_version) if remote_version else None
 
         # Determine effective local version (max of installed_version and APP_VERSION).
-        effective_local: Optional[tuple[int, ...]] = None
+        effective_local: tuple[int, ...] | None = None
         for v in local_parsed:
             if v is None:
                 continue
@@ -227,7 +233,7 @@ class UpdateSequence:
                 config.set("General", "update_retry_count", "0")
                 try:
                     write_config_file(config, config_path)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     updater_log.warning(f"Could not persist update state to {config_path}: {e}")
             status_callback("Launcher is already up to date")
             return False
@@ -272,7 +278,16 @@ class UpdateSequence:
             total_size,
         ):
             return False
-        
+
+        # The update ZIP is the one download that replaces the whole app, so it
+        # is checked against the digest GitHub publishes for the asset. GitHub
+        # omits the digest on older releases; verify_file accepts None there.
+        if not verify.verify_file(zip_path, verify.digest_of_asset(asset)):
+            status_callback("Update download failed its checksum check")
+            updater_log.error("Update ZIP failed its checksum check; not installing")
+            zip_path.unlink(missing_ok=True)
+            return False
+
         # Extract update
         status_callback("Extracting update")
         staging_dir = updates_root / "staging"
@@ -284,7 +299,7 @@ class UpdateSequence:
         )
         if not extracted_root:
             return False
-        
+
         # Download hash file if available (skip in dev mode)
         if getattr(sys, "frozen", False):
             hash_asset = self.github_client.get_hash_asset(release)
@@ -292,11 +307,18 @@ class UpdateSequence:
                 status_callback("Downloading hash file...")
                 hash_download_url = hash_asset.get("browser_download_url")
                 hash_target_path = extracted_root / "injection" / "tools" / "hashes.game.txt"
-                self.downloader.download_hash_file(
+                if self.downloader.download_hash_file(
                     hash_download_url,
                     hash_target_path,
                     status_callback,
-                )
+                ) and not verify.verify_file(
+                    hash_target_path, verify.digest_of_asset(hash_asset)
+                ):
+                    # A corrupt hash file would be mirrored into the install and
+                    # break injection; drop it and keep the one already there.
+                    status_callback("Hash file failed its checksum check")
+                    updater_log.error("Hash file failed its checksum check; keeping the installed one")
+                    hash_target_path.unlink(missing_ok=True)
         
         # Install update
         status_callback("Installing update")
@@ -311,7 +333,7 @@ class UpdateSequence:
             config.set("General", "installed_version", remote_version)
             try:
                 write_config_file(config, config_path)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 updater_log.warning(
                     f"Failed to persist installed_version to config before update: {exc}"
                 )

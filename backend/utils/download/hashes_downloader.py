@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Hashes Downloader
 Downloads hashes.game.txt from CommunityDragon/Data repository
@@ -7,11 +6,12 @@ Checks for updates based on latest commit SHA
 """
 
 import json
-import requests
 from pathlib import Path
-from typing import Optional, Dict
-from utils.core.logging import get_logger
+
+import requests
+
 from config import APP_USER_AGENT, RATE_LIMIT_REQUEST_TIMEOUT
+from utils.core.logging import get_logger
 
 log = get_logger()
 
@@ -39,7 +39,7 @@ class HashesDownloader:
             'Accept': 'application/vnd.github.v3+json'
         })
     
-    def get_latest_commit_sha(self) -> Optional[str]:
+    def get_latest_commit_sha(self) -> str | None:
         """Get the latest commit SHA for the hashes/lol directory"""
         try:
             # Get the latest commit that touched the hashes/lol directory
@@ -71,7 +71,7 @@ class HashesDownloader:
             log.error(f"Failed to get latest commit SHA: {e}")
             return None
     
-    def load_local_state(self) -> Dict:
+    def load_local_state(self) -> dict:
         """Load local state from state file"""
         if not self.state_file.exists():
             return {}
@@ -79,17 +79,17 @@ class HashesDownloader:
         try:
             with open(self.state_file, 'r') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             log.warning(f"Failed to load local state: {e}")
             return {}
     
-    def save_local_state(self, state: Dict):
+    def save_local_state(self, state: dict):
         """Save local state to state file"""
         try:
             self.state_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.state_file, 'w') as f:
                 json.dump(state, f, indent=2)
-        except IOError as e:
+        except OSError as e:
             log.warning(f"Failed to save local state: {e}")
     
     def has_hashes_changed(self) -> bool:
@@ -120,7 +120,7 @@ class HashesDownloader:
         log.debug("Hashes unchanged, skipping download")
         return False
     
-    def download_hashes_file(self, filename: str) -> Optional[bytes]:
+    def download_hashes_file(self, filename: str) -> bytes | None:
         """Download a single hashes file from GitHub raw content"""
         url = f"{self.raw_base}/{self.hashes_path}/{filename}"
         
@@ -198,7 +198,7 @@ class HashesDownloader:
             
             return True
             
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"Failed to download and merge hashes: {e}")
             return False
     
@@ -213,7 +213,7 @@ class HashesDownloader:
                 log.debug("hashes.game.txt is up to date")
                 return True
                 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"Failed to ensure hashes file: {e}")
             return False
 

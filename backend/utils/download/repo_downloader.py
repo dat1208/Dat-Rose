@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Repository Downloader
 Downloads the entire repository as a ZIP file and extracts it locally
@@ -8,24 +7,26 @@ Supports incremental updates by tracking repository changes
 """
 
 import json
+import tempfile
 import time
 import zipfile
-import tempfile
-import requests
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional, Dict, List, Tuple
+
+import requests
+
+from config import APP_USER_AGENT, SKIN_DOWNLOAD_STREAM_TIMEOUT_S
 from utils.core.atomic_file import atomic_write, write_text_atomic
 from utils.core.logging import get_logger
 from utils.core.paths import get_classic_skins_dir, get_skins_dir
 from utils.core.safe_extract import is_safe_path, join_within
-from config import APP_USER_AGENT, SKIN_DOWNLOAD_STREAM_TIMEOUT_S
 
 log = get_logger()
 
-ProgressCallback = Callable[[int, Optional[str]], None]
+ProgressCallback = Callable[[int, str | None], None]
 
 
-def _format_size(num: Optional[int]) -> str:
+def _format_size(num: int | None) -> str:
     if num is None or num <= 0:
         return "0B"
     units = ["B", "KB", "MB", "GB", "TB"]
@@ -37,14 +38,38 @@ def _format_size(num: Optional[int]) -> str:
     return f"{num}B"
 
 
+def _is_library_file(path: Path, root: Path) -> bool:
+    """True when path is a file the skin library itself writes.
+
+    The library layout is ``<champion>/<skin>/<id>.zip|.fantome|.png`` plus
+    ``<champion>/<skin>/<chroma>/<id>.zip|.fantome|.png``. Cleanup only removes
+    files that fit it, so a user's own archive dropped into the skins folder is
+    never deleted.
+    """
+    try:
+        parts = path.relative_to(root).parts
+    except ValueError:
+        return False
+    if not 3 <= len(parts) <= 4:
+        return False
+    if not parts[0].isdigit() or not parts[1].isdigit():
+        return False
+    if len(parts) == 4 and not parts[2].isdigit():
+        return False
+    # The file is named after the folder that holds it: <id>/<id>.zip.
+    if path.stem != parts[-2]:
+        return False
+    return path.suffix.lower() in (".zip", ".fantome", ".png")
+
+
 class RepoDownloader:
     """Downloads entire repository as ZIP and extracts locally with incremental updates"""
     
     def __init__(
         self,
-        target_dir: Path = None,
+        target_dir: Path | None = None,
         repo_url: str = "https://github.com/Alban1911/LeagueSkins",
-        progress_callback: Optional[ProgressCallback] = None,
+        progress_callback: ProgressCallback | None = None,
     ):
         self.repo_url = repo_url
         # Use user data directory for skins to avoid permission issues
@@ -58,7 +83,7 @@ class RepoDownloader:
         # Per-file failures from the last sync, so the UI can list and retry
         # them instead of leaving them only in the log. Written to
         # failed_skins.json next to the skins.
-        self.failed_files: List[Dict] = []
+        self.failed_files: list[dict] = []
         self.failed_state_file = self.target_dir / "failed_skins.json"
 
         # Rift Classic skins (the repository's classic/ folder), next to the skins
@@ -74,7 +99,7 @@ class RepoDownloader:
         # If changed files exceed this, use full ZIP instead of individual downloads
         self.incremental_file_threshold = 200
     
-    def _emit_progress(self, percent: float, message: Optional[str] = None):
+    def _emit_progress(self, percent: float, message: str | None = None):
         if not self.progress_callback:
             return
         bounded = max(0.0, min(percent, 100.0))
@@ -148,7 +173,7 @@ class RepoDownloader:
             log.warning(f"Failed to update the failed-skins state: {e}")
 
     
-    def fetch_remote_sha(self) -> Optional[str]:
+    def fetch_remote_sha(self) -> str | None:
         """Fetch the latest commit SHA from the skin repo via GitHub API (1 API call)."""
         try:
             response = self.session.get(
@@ -165,13 +190,13 @@ class RepoDownloader:
             log.warning(f"Failed to fetch remote SHA: {e}")
             return None
 
-    def get_local_sha(self) -> Optional[str]:
+    def get_local_sha(self) -> str | None:
         """Read the locally stored commit SHA."""
         if not self.version_file.exists():
             return None
         try:
             return self.version_file.read_text(encoding='utf-8').strip()
-        except (IOError, OSError) as e:
+        except OSError as e:
             log.warning(f"Failed to read local SHA: {e}")
             return None
 
@@ -179,7 +204,7 @@ class RepoDownloader:
         """Save the commit SHA locally."""
         try:
             write_text_atomic(self.version_file, sha)
-        except (IOError, OSError) as e:
+        except OSError as e:
             log.warning(f"Failed to save local SHA: {e}")
 
     def has_repository_changed(self) -> bool:
@@ -201,7 +226,7 @@ class RepoDownloader:
         log.info("Repository unchanged, skipping download")
         return False
 
-    def get_changed_files(self, old_sha: str, new_sha: str) -> Optional[List[Dict]]:
+    def get_changed_files(self, old_sha: str, new_sha: str) -> list[dict] | None:
         """Get list of changed files between two commits using GitHub compare API.
 
         Returns list of changed file dicts, or None if the API call fails.
@@ -227,7 +252,7 @@ class RepoDownloader:
             log.warning(f"Compare API failed, will use full ZIP: {e}")
             return None
 
-    def _resolve_local_path(self, repo_path: str) -> Optional[Path]:
+    def _resolve_local_path(self, repo_path: str) -> Path | None:
         """Map a repo-relative path (skins/..., classic/... or resources/...) to a local path."""
         from utils.core.paths import get_user_data_dir
         if repo_path.startswith('skins/'):
@@ -253,7 +278,7 @@ class RepoDownloader:
         except OSError as e:
             log.warning(f"Failed to record the Rift Classic skin library state: {e}")
 
-    def download_changed_files(self, changed_files: List[Dict]) -> bool:
+    def download_changed_files(self, changed_files: list[dict]) -> bool:
         """Download changed files individually via raw.githubusercontent.com.
 
         Handles skins/ and resources/ paths. Supports add, modify, remove, rename.
@@ -330,7 +355,7 @@ class RepoDownloader:
         log.info(f"Incremental update: {success_count} succeeded, {fail_count} failed out of {total}")
         return fail_count == 0
     
-    def download_repo_zip(self, progress_start: float = 0.0, progress_end: float = 70.0, download_label: str = "skins") -> Optional[Path]:
+    def download_repo_zip(self, progress_start: float = 0.0, progress_end: float = 70.0, download_label: str = "skins") -> Path | None:
         """Download the entire repository as a ZIP file with retry logic"""
         # GitHub's ZIP download URL format
         zip_url = f"{self.repo_url}/archive/refs/heads/main.zip"
@@ -345,12 +370,13 @@ class RepoDownloader:
             temp_zip_path = None
             try:
                 # Create temporary file for ZIP
-                temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+                # Closed immediately: the file is reopened by path below.
+                temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')  # noqa: SIM115
                 temp_zip_path = Path(temp_zip.name)
                 temp_zip.close()
 
                 # Try to resolve total size via HEAD request first
-                total_size: Optional[int] = None
+                total_size: int | None = None
                 try:
                     head_response = self.session.head(zip_url, allow_redirects=True, timeout=SKIN_DOWNLOAD_STREAM_TIMEOUT_S)
                     head_response.raise_for_status()
@@ -423,7 +449,7 @@ class RepoDownloader:
                 if temp_zip_path and temp_zip_path.exists():
                     try:
                         temp_zip_path.unlink()
-                    except Exception as unlink_error:
+                    except Exception as unlink_error:  # noqa: BLE001
                         log.debug(f"Could not remove partial download {temp_zip_path}: {unlink_error}")
 
                 if attempt < max_retries:
@@ -435,13 +461,13 @@ class RepoDownloader:
                     log.error(f"Failed to download repository ZIP after {max_retries} attempts: {e}")
                     return None
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 log.error(f"Error downloading repository: {e}")
                 # Clean up partial download
                 if temp_zip_path and temp_zip_path.exists():
                     try:
                         temp_zip_path.unlink()
-                    except Exception as unlink_error:
+                    except Exception as unlink_error:  # noqa: BLE001
                         log.debug(f"Could not remove partial download {temp_zip_path}: {unlink_error}")
                 return None
 
@@ -449,7 +475,7 @@ class RepoDownloader:
     
     def _cleanup_removed_skin_files(
         self,
-        zip_file_list: List[zipfile.ZipInfo],
+        zip_file_list: list[zipfile.ZipInfo],
         target_dir: Path,
     ) -> int:
         """Remove files from target directory that are no longer in the repository ZIP
@@ -504,6 +530,12 @@ class RepoDownloader:
             # Skip state files (like .repo_state.json) but keep other files
             if local_file.name.startswith('.') and local_file.name.endswith('_state.json'):
                 continue
+
+            # Only ever delete files the library itself writes: a skin archive
+            # or preview inside <champion>/<skin>[/<chroma>]/. Anything else in
+            # the folder (a user's own zip, failed_skins.json, notes) is kept.
+            if not _is_library_file(local_file, target_dir):
+                continue
             
             # Get relative path from target_dir
             try:
@@ -520,7 +552,7 @@ class RepoDownloader:
                     local_file.unlink()
                     deleted_count += 1
                     log.debug(f"Removed obsolete file: {local_file}")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     log.warning(f"Failed to remove {local_file}: {e}")
         
         # Clean up empty directories
@@ -529,9 +561,9 @@ class RepoDownloader:
                 if dir_path.is_dir() and not any(dir_path.iterdir()):
                     try:
                         dir_path.rmdir()
-                    except Exception as rmdir_error:
+                    except Exception as rmdir_error:  # noqa: BLE001
                         log.debug(f"Could not remove empty skin directory {dir_path}: {rmdir_error}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.debug(f"Error cleaning up empty directories: {e}")
         
         return deleted_count
@@ -611,7 +643,7 @@ class RepoDownloader:
                 skipped_skin_count = 0
                 skipped_resources_count = 0
 
-                entries: List[Tuple[str, zipfile.ZipInfo]] = [("skin", info) for info in skins_files]
+                entries: list[tuple[str, zipfile.ZipInfo]] = [("skin", info) for info in skins_files]
                 entries.extend(("classic", info) for info in classic_files)
                 entries.extend(("resource", info) for info in resources_files)
 
@@ -706,7 +738,7 @@ class RepoDownloader:
                         else:
                             extracted_resources_count += 1
 
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         log.warning(f"Failed to extract {file_info.filename}: {e}")
                         failed_count += 1
                         self._record_failure(file_info.filename, str(e))
@@ -762,7 +794,7 @@ class RepoDownloader:
         except zipfile.BadZipFile:
             log.error("Invalid ZIP file")
             return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"Error extracting skins: {e}")
             return False
     
@@ -815,12 +847,12 @@ class RepoDownloader:
             # Fall back to full ZIP download
             return self.download_and_extract_skins(force_update=True, remote_sha=remote_sha)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"Failed to check for updates: {e}")
             self._emit_progress(100, f"Failed: {e}")
             return False
     
-    def download_and_extract_skins(self, force_update: bool = False, remote_sha: Optional[str] = None) -> bool:
+    def download_and_extract_skins(self, force_update: bool = False, remote_sha: str | None = None) -> bool:
         """Download repository ZIP and extract skins + resources"""
         self._reset_failed_state()
         try:
@@ -872,10 +904,10 @@ class RepoDownloader:
                     log.debug("Cleaned up temporary ZIP file")
                 except (OSError, FileNotFoundError) as e:
                     log.debug(f"Could not remove temporary ZIP file: {e}")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     log.debug(f"Unexpected error cleaning up ZIP file: {e}")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"Failed to download and extract skins: {e}")
             self._emit_progress(100, f"Failed: {e}")
             return False
@@ -893,7 +925,7 @@ class RepoDownloader:
 
         return stats
     
-    def get_detailed_stats(self) -> Dict[str, int]:
+    def get_detailed_stats(self) -> dict[str, int]:
         """
         Get detailed statistics categorizing base skins and chromas from new merged format
         
@@ -966,11 +998,11 @@ class RepoDownloader:
 
 
 def download_skins_from_repo(
-    target_dir: Path = None,
+    target_dir: Path | None = None,
     force_update: bool = False,
     tray_manager=None,
     use_incremental: bool = True,
-    progress_callback: Optional[ProgressCallback] = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> bool:
     """Download skins from repository with optional incremental updates"""
     try:
@@ -1015,6 +1047,6 @@ def download_skins_from_repo(
         
         return success
         
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.error(f"Repository download failed: {e}")
         return False

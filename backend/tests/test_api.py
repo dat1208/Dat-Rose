@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """API: routes, JSON shape and loopback-origin guard."""
 
 import json
@@ -73,9 +72,10 @@ class ApiTests(unittest.TestCase):
         from pathlib import Path
         from unittest.mock import patch
 
-        with tempfile.TemporaryDirectory() as tmp:
-            with patch("utils.core.paths.get_skins_dir", return_value=Path(tmp)):
-                status, data = self._get("/api/skins/failed")
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "utils.core.paths.get_skins_dir", return_value=Path(tmp)
+        ):
+            status, data = self._get("/api/skins/failed")
         self.assertEqual(status, 200)
         self.assertEqual(data["files"], [])
 

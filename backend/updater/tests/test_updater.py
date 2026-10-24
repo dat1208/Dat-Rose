@@ -136,6 +136,30 @@ class FetchPatcherTests(unittest.TestCase):
 
         self.assertEqual(self.session.urls, [])
 
+    def test_present_pair_that_does_not_match_the_pin_is_replaced(self):
+        # A pair left by an older build: both files exist, but neither is the
+        # pinned one. Presence alone must not count as "already installed".
+        self.tools.mkdir(parents=True)
+        (self.tools / HOST).write_bytes(b"old host")
+        (self.tools / DLL).write_bytes(b"old dll")
+
+        ltk_patcher.fetch_patcher(self.tools)
+
+        self.assertEqual((self.tools / HOST).read_bytes(), HOST_BYTES)
+        self.assertEqual((self.tools / DLL).read_bytes(), DLL_BYTES)
+        self.assertEqual(len(self.session.urls), 2)
+
+    def test_half_matching_pair_is_replaced(self):
+        # Only the host matches the pin; the DLL does not. Both are fetched so
+        # the pair always comes from the same commit.
+        self.tools.mkdir(parents=True)
+        (self.tools / HOST).write_bytes(HOST_BYTES)
+        (self.tools / DLL).write_bytes(b"old dll")
+
+        ltk_patcher.fetch_patcher(self.tools)
+
+        self.assertEqual((self.tools / DLL).read_bytes(), DLL_BYTES)
+
     def test_force_redownloads_present_pair(self):
         self.tools.mkdir(parents=True)
         (self.tools / HOST).write_bytes(b"old host")

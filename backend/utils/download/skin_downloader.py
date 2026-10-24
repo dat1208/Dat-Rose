@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Skin Downloader
 Automatically downloads skins from the GitHub repository
 """
 
 import time
-import requests
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, List, Dict, Optional
+
+import requests
+
+from config import (
+    API_POLITENESS_DELAY_S,
+    APP_USER_AGENT,
+    DEFAULT_SKIN_DOWNLOAD_TIMEOUT_S,
+    SKIN_DOWNLOAD_STREAM_TIMEOUT_S,
+)
 from utils.core.logging import get_logger
 from utils.core.paths import get_skins_dir
-from config import (
-    API_POLITENESS_DELAY_S, APP_USER_AGENT,
-    DEFAULT_SKIN_DOWNLOAD_TIMEOUT_S, SKIN_DOWNLOAD_STREAM_TIMEOUT_S
-)
 
 log = get_logger()
 
-ProgressCallback = Callable[[int, Optional[str]], None]
+ProgressCallback = Callable[[int, str | None], None]
 
 
 class SkinDownloader:
     """Downloads skins from the GitHub repository"""
     
-    def __init__(self, target_dir: Path = None, repo_url: str = "https://github.com/darkseal-org/lol-skins"):
+    def __init__(self, target_dir: Path | None = None, repo_url: str = "https://github.com/darkseal-org/lol-skins"):
         self.repo_url = repo_url
         self.api_base = "https://api.github.com/repos/darkseal-org/lol-skins"
         # Use user data directory for skins to avoid permission issues
@@ -35,7 +38,7 @@ class SkinDownloader:
             'Accept': 'application/vnd.github.v3+json'
         })
         
-    def get_repo_contents(self, path: str = "skins") -> List[Dict]:
+    def get_repo_contents(self, path: str = "skins") -> list[dict]:
         """Get the contents of a directory from the GitHub repository"""
         url = f"{self.api_base}/contents/{path}"
         
@@ -47,7 +50,7 @@ class SkinDownloader:
             log.error(f"Failed to fetch repository contents: {e}")
             return []
     
-    def get_champion_directories(self) -> List[str]:
+    def get_champion_directories(self) -> list[str]:
         """Get list of champion directories from the skins folder"""
         contents = self.get_repo_contents("skins")
         if not contents:
@@ -61,7 +64,7 @@ class SkinDownloader:
         log.info(f"Found {len(champion_dirs)} champion directories")
         return champion_dirs
     
-    def get_skin_files(self, champion: str) -> List[Dict]:
+    def get_skin_files(self, champion: str) -> list[dict]:
         """Get list of skin files for a specific champion"""
         contents = self.get_repo_contents(f"skins/{champion}")
         if not contents:
@@ -92,7 +95,7 @@ class SkinDownloader:
         except requests.RequestException as e:
             log.error(f"Failed to download {download_url}: {e}")
             return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"Error saving file {local_path}: {e}")
             return False
     
@@ -125,7 +128,7 @@ class SkinDownloader:
         
         return downloaded_count
     
-    def download_all_skins(self, force_update: bool = False, max_champions: Optional[int] = None) -> Dict[str, int]:
+    def download_all_skins(self, force_update: bool = False, max_champions: int | None = None) -> dict[str, int]:
         """Download skins for all champions"""
         champion_dirs = self.get_champion_directories()
         if not champion_dirs:
@@ -157,13 +160,13 @@ class SkinDownloader:
                 # Small delay to be respectful to GitHub API
                 time.sleep(API_POLITENESS_DELAY_S)
                 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 log.error(f"Error processing {champion}: {e}")
                 results[champion] = 0
         
         # Get detailed statistics
         detailed_stats = self.get_detailed_stats()
-        log.info(f"Download complete!")
+        log.info("Download complete!")
         log.info(f"  Total base skins: {detailed_stats['total_skins']}")
         log.info(f"  Total chromas: {detailed_stats['total_chromas']}")
         log.info(f"  Total skin IDs: {detailed_stats['total_ids']}")
@@ -171,7 +174,7 @@ class SkinDownloader:
         return results
     
     @property
-    def download_stats(self) -> Dict[str, int]:
+    def download_stats(self) -> dict[str, int]:
         """Get statistics about downloaded skins (total IDs per champion)"""
         if not self.target_dir.exists():
             return {}
@@ -184,7 +187,7 @@ class SkinDownloader:
         
         return stats
     
-    def get_detailed_stats(self) -> Dict[str, int]:
+    def get_detailed_stats(self) -> dict[str, int]:
         """
         Get detailed statistics categorizing base skins and chromas
         
@@ -239,7 +242,7 @@ class SkinDownloader:
                             skin_file.unlink()
                             removed_count += 1
                             log.debug(f"Removed old skin: {skin_file}")
-                        except Exception as e:
+                        except Exception as e:  # noqa: BLE001
                             log.error(f"Failed to remove {skin_file}: {e}")
         
         if removed_count > 0:
@@ -249,12 +252,12 @@ class SkinDownloader:
 
 
 def download_skins_on_startup(
-    target_dir: Path = None,
+    target_dir: Path | None = None,
     force_update: bool = False,
-    max_champions: Optional[int] = None,
+    max_champions: int | None = None,
     tray_manager=None,
     injection_manager=None,
-    progress_callback: Optional[ProgressCallback] = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> bool:
     """Download skins using repository ZIP download (most efficient method)"""
     try:
@@ -273,7 +276,7 @@ def download_skins_on_startup(
             injection_manager.initialize_when_ready()
         return result
         
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.error(f"Failed to download skins: {e}")
         if injection_manager:
             injection_manager.initialize_when_ready()
