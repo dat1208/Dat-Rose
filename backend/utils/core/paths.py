@@ -282,13 +282,12 @@ def get_assets_dir() -> Path:
     """
     if getattr(sys, 'frozen', False):
         # Running as compiled executable
-        # PyInstaller extracts data files to _MEIPASS (onefile) or _internal (onedir)
-        if hasattr(sys, '_MEIPASS'):
-            # One-file mode: use _MEIPASS
-            base_path = Path(sys._MEIPASS)
-        else:
-            # One-dir mode: use _internal folder
-            base_path = Path(sys.executable).parent / "_internal"
+        # Resolve from the running executable: in onedir builds sys._MEIPASS is
+        # the builder's _internal folder, so an installed copy would look for
+        # its assets on the build machine.
+        base_path = Path(sys.executable).parent / "_internal"
+        if not (base_path / "assets").is_dir():
+            base_path = Path(sys.executable).parent
         return base_path / "assets"
     else:
         # Running as script

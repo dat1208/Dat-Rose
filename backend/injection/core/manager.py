@@ -509,28 +509,20 @@ class InjectionManager:
     def _get_injection_dir(self) -> Path:
         """Get the injection directory path (works in both frozen and development environments)"""
         if getattr(sys, 'frozen', False):
-            # Running as compiled executable (PyInstaller)
-            # Handle both onefile (_MEIPASS) and onedir (_internal) modes
-            if hasattr(sys, '_MEIPASS'):
-                # One-file mode: tools are in _MEIPASS (temporary extraction directory)
-                base_path = Path(sys._MEIPASS)
-                injection_dir = base_path / "injection"
-            else:
-                # One-dir mode: tools are alongside executable
-                base_dir = Path(sys.executable).parent
-                possible_injection_dirs = [
-                    base_dir / "injection",  # Direct path
-                    base_dir / "_internal" / "injection",  # _internal folder
-                ]
-                
-                injection_dir = None
-                for dir_path in possible_injection_dirs:
-                    if dir_path.exists():
-                        injection_dir = dir_path
-                        break
-                
-                if not injection_dir:
-                    injection_dir = possible_injection_dirs[0]
+            # Resolve from the running executable, never from sys._MEIPASS: in
+            # onedir builds _MEIPASS points at the builder's _internal folder.
+            base_dir = Path(sys.executable).parent
+            possible_injection_dirs = [
+                base_dir / "_internal" / "injection",  # onedir (PyInstaller 6+)
+                base_dir / "injection",  # onedir (older layout)
+            ]
+            injection_dir = None
+            for dir_path in possible_injection_dirs:
+                if (dir_path / "tools" / "mod-tools.exe").exists():
+                    injection_dir = dir_path
+                    break
+            if not injection_dir:
+                injection_dir = possible_injection_dirs[0]
         else:
             # Running as Python script
             injection_dir = Path(__file__).parent.parent

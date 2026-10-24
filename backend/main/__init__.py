@@ -21,22 +21,18 @@ if sys.version_info < MIN_PYTHON:
 def _get_tools_dir() -> Path:
     """Get the tools directory path (works in both frozen and development environments)"""
     if getattr(sys, 'frozen', False):
-        # Running as compiled executable (PyInstaller)
-        if hasattr(sys, '_MEIPASS'):
-            # One-file mode: tools are in _MEIPASS
-            base_path = Path(sys._MEIPASS)
-            return base_path / "injection" / "tools"
-        else:
-            # One-dir mode: tools are alongside executable
-            base_dir = Path(sys.executable).parent
-            possible_dirs = [
-                base_dir / "injection" / "tools",
-                base_dir / "_internal" / "injection" / "tools",
-            ]
-            for dir_path in possible_dirs:
-                if dir_path.exists():
-                    return dir_path
-            return possible_dirs[0]
+        # Resolve from the running executable, never from sys._MEIPASS: in onedir
+        # builds _MEIPASS points at the builder's _internal folder, so an
+        # installed copy looked for its tools in the build machine's directory.
+        base_dir = Path(sys.executable).parent
+        possible_dirs = [
+            base_dir / "_internal" / "injection" / "tools",  # onedir (PyInstaller 6+)
+            base_dir / "injection" / "tools",  # onedir (older layout)
+        ]
+        for dir_path in possible_dirs:
+            if (dir_path / "mod-tools.exe").exists():
+                return dir_path
+        return possible_dirs[0]
     else:
         # Running as Python script
         return Path(__file__).parent.parent / "injection" / "tools"
@@ -132,12 +128,10 @@ def _show_native_dll_dialog(tools_dir, reason="missing", detail=""):
     )
     footer = "Please do not request or share this file in Discord. Rose cannot distribute it because of licensing restrictions."
     assets_dirs = []
-    if hasattr(sys, "_MEIPASS"):
-        assets_dirs.append(Path(sys._MEIPASS) / "assets")
     if getattr(sys, "frozen", False):
         assets_dirs.extend([
-            Path(sys.executable).parent / "assets",
             Path(sys.executable).parent / "_internal" / "assets",
+            Path(sys.executable).parent / "assets",
         ])
     else:
         assets_dirs.append(Path(__file__).parent.parent / "assets")

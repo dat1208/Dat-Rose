@@ -36,34 +36,24 @@ class SkinInjector:
         # Use injection folder as base if paths not provided
         # Handle both frozen (PyInstaller) and development environments
         if getattr(sys, 'frozen', False):
-            # Running as compiled executable (PyInstaller)
-            # Handle both onefile (_MEIPASS) and onedir (_internal) modes
-            if hasattr(sys, '_MEIPASS'):
-                # One-file mode: tools are in _MEIPASS (temporary extraction directory)
-                base_path = Path(sys._MEIPASS)
-                injection_dir = base_path / "injection"
-                log.debug(f"Found injection directory at: {injection_dir} (onefile mode)")
-            else:
-                # One-dir mode: tools are alongside executable
-                base_dir = Path(sys.executable).parent
-                
-                # Check multiple locations for injection tools (PyInstaller can place them in different spots)
-                possible_injection_dirs = [
-                    base_dir / "injection",  # Direct path
-                    base_dir / "_internal" / "injection",  # _internal folder
-                ]
-                
-                injection_dir = None
-                for dir_path in possible_injection_dirs:
-                    if dir_path.exists():
-                        injection_dir = dir_path
-                        log.debug(f"Found injection directory at: {injection_dir}")
-                        break
-                
-                if not injection_dir:
-                    # Fallback to first option if neither exists
-                    injection_dir = possible_injection_dirs[0]
-                    log.warning(f"Injection directory not found, using default: {injection_dir}")
+            # Always resolve from the running executable, never from sys._MEIPASS:
+            # in onedir builds _MEIPASS is the _internal folder of the machine that
+            # built the bundle, so a copied/installed app looked for its tools in
+            # the builder's directory and failed with "Missing mod-tools.exe".
+            base_dir = Path(sys.executable).parent
+            possible_injection_dirs = [
+                base_dir / "_internal" / "injection",  # onedir (PyInstaller 6+)
+                base_dir / "injection",  # onedir (older layout)
+            ]
+            injection_dir = None
+            for dir_path in possible_injection_dirs:
+                if (dir_path / "tools" / "mod-tools.exe").exists():
+                    injection_dir = dir_path
+                    log.debug(f"Found injection directory at: {injection_dir}")
+                    break
+            if injection_dir is None:
+                injection_dir = possible_injection_dirs[0]
+                log.warning(f"Injection directory not found, using default: {injection_dir}")
         else:
             # Running as Python script
             injection_dir = Path(__file__).parent.parent
