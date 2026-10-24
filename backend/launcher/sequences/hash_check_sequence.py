@@ -5,12 +5,8 @@ Handles game hash file verification sequence
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-from typing import Callable
-
-from utils.download.hash_updater import update_hash_files
 from utils.core.logging import get_logger, get_named_logger
+from utils.download.hash_updater import update_hash_files
 
 log = get_logger()
 updater_log = get_named_logger("updater", prefix="log_updater")

@@ -6,7 +6,6 @@ Handles skin download and verification sequence
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 from state import AppStatus
 from utils.core.logging import get_logger, get_named_logger
@@ -55,7 +54,7 @@ class SkinSyncSequence:
         dialog.pump_messages()
         updater_log.info("Downloading skins and previews (incremental=%s).", not needs_full_download)
 
-        def skin_progress(percent: int, message: Optional[str] = None) -> None:
+        def skin_progress(percent: int, message: str | None = None) -> None:
             if message:
                 dialog.set_status(message)
                 updater_log.info(f"Skin download status: {message}")

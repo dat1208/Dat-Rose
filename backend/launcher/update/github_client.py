@@ -5,8 +5,6 @@ Handles GitHub API interactions for release checking
 
 from __future__ import annotations
 
-from typing import Optional
-
 import requests
 
 from utils.core.logging import get_logger
@@ -36,7 +34,7 @@ class GitHubClient:
     def __init__(self, timeout: int = 20):
         self.timeout = timeout
     
-    def get_latest_release(self) -> Optional[dict]:
+    def get_latest_release(self) -> dict | None:
         """Get the latest release information from GitHub
         
         Returns:
@@ -48,7 +46,7 @@ class GitHubClient:
             response = requests.get(GITHUB_RELEASE_API, timeout=self.timeout)
             response.raise_for_status()
             return response.json()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.warning("Update check failed while fetching latest release: %s", e)
             return None
     
@@ -56,12 +54,12 @@ class GitHubClient:
         """Extract version string from release data"""
         return release.get("tag_name") or release.get("name") or ""
     
-    def get_zip_asset(self, release: dict) -> Optional[dict]:
+    def get_zip_asset(self, release: dict) -> dict | None:
         """Get the ZIP asset from release data"""
         assets = release.get("assets", [])
         return next((a for a in assets if a.get("name", "").lower().endswith(".zip")), None)
     
-    def get_hash_asset(self, release: dict) -> Optional[dict]:
+    def get_hash_asset(self, release: dict) -> dict | None:
         """Get the hash file asset from release data"""
         assets = release.get("assets", [])
         return next((a for a in assets if a.get("name", "").lower() == "hashes.game.txt"), None)

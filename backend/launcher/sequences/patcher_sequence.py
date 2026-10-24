@@ -36,7 +36,7 @@ def _game_dir():
 
         path = get_config_option("General", "leaguePath")
         return Path(path) if path else None
-    except Exception:  # noqa: BLE001 - config is best effort here
+    except Exception:  # noqa: BLE001
         return None
 
 

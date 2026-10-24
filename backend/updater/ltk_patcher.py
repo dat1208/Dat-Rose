@@ -33,7 +33,6 @@ from config import APP_USER_AGENT
 from injection.tools.patcher import (
     LTK_PATCHER_DLL,
     LTK_PATCHER_HOST,
-    check_ltk_patcher,
     read_dll_eol,
     read_game_build,
 )
@@ -162,21 +161,36 @@ def _verifies_host(dll: Path) -> bool:
         return False
 
 
+def _matches_pin(path: Path, name: str) -> bool:
+    """True when path is exactly the pinned file for name."""
+    sha256, size = PIN[name]
+    try:
+        if not path.is_file() or path.stat().st_size != size:
+            return False
+    except OSError:
+        return False
+    return verify.verify_file(path, sha256)
+
+
 def fetch_patcher(tools_dir: Path, force: bool = False) -> Path:
     """Make sure tools_dir holds a usable LTK patcher; return the tools dir.
 
+    The installed pair is compared against the pin, not merely checked for
+    presence: a copy left by an older build (or by the LTK Manager installer
+    this module used to run) has a different hash and is replaced, so an
+    existing install is upgraded instead of being kept forever.
+
     Args:
         tools_dir: Where ltk_patcher_host.exe and ltk_patcher_dll.dll go.
-        force: Replace an existing patcher even if one is present.
+        force: Replace an existing patcher even if it already matches the pin.
 
     Raises:
         PatcherInstallError when the pinned pair could not be fetched and
         verified; the existing files are left untouched in that case.
     """
     tools_dir = Path(tools_dir)
-    status = check_ltk_patcher(tools_dir)
-    if not status.missing and not force:
-        log.debug("LTK patcher already present")
+    if not force and all(_matches_pin(tools_dir / n, n) for n in PATCHER_FILES):
+        log.debug("LTK patcher already matches the pin")
         return tools_dir
 
     downloads: list[_Download] = []

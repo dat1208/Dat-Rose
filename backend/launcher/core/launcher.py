@@ -17,21 +17,21 @@ import os
 import sys
 import threading
 import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Callable, Iterator
 
 from utils.core.logging import get_logger, get_named_logger
 from utils.system.win32_base import (
-    WM_CLOSE,
     SW_SHOWNORMAL,
+    WM_CLOSE,
     user32,
 )
 
-from ..ui.update_dialog import UpdateDialog
-from ..update.update_sequence import UpdateSequence
 from ..sequences.hash_check_sequence import HashCheckSequence
 from ..sequences.patcher_sequence import PatcherSequence
 from ..sequences.skin_sync_sequence import SkinSyncSequence
+from ..ui.update_dialog import UpdateDialog
+from ..update.update_sequence import UpdateSequence
 
 log = get_logger()
 updater_log = get_named_logger("updater", prefix="log_updater")
@@ -73,7 +73,7 @@ def _show_error(message: str) -> None:
             MB_OK | MB_ICONERROR | MB_TOPMOST,
         )
         updater_log.error(f"Error dialog shown to user: {message}")
-    except Exception:
+    except Exception:  # noqa: BLE001
         print(f"[Launcher] ERROR: {message}")
         updater_log.exception("Failed to show error dialog", exc_info=True)
 
@@ -145,7 +145,7 @@ def _perform_update(dialog: UpdateDialog, dev_mode: bool = False) -> bool:
     dialog.set_marquee(True)
     dialog.pump_messages()
 
-    status_cb, progress_cb = _with_ui_updates(dialog)
+    status_cb, _progress_cb = _with_ui_updates(dialog)
     try:
         sequence = UpdateSequence()
         updated = sequence.perform_update(
@@ -221,17 +221,17 @@ def _run_launcher_headless(dev_mode: bool, test_download_fail: bool, progress) -
         # An update replaces the running app; the installer restarts it.
         updater_log.info("Launcher exiting for an update restart.")
         raise
-    except Exception as exc:  # noqa: BLE001
-        log.error(f"Launcher update step failed: {exc}", exc_info=True)
+    except Exception as exc:
+        log.exception("Launcher update step failed")
         progress.fail(str(exc))
         return
 
     # The three checks are independent; run them together so startup takes the
     # slowest, not the sum.
     steps = (
-        ("hashes", "Checking skin hashes…", HashCheckSequence().perform_hash_check, dict(dev_mode=dev_mode)),
-        ("patcher", "Preparing the skin patcher…", PatcherSequence().perform_patcher_setup, dict(dev_mode=dev_mode)),
-        ("skins", "Syncing skin data…", SkinSyncSequence().perform_skin_sync, dict(test_fail=test_download_fail)),
+        ("hashes", "Checking skin hashes…", HashCheckSequence().perform_hash_check, {"dev_mode": dev_mode}),
+        ("patcher", "Preparing the skin patcher…", PatcherSequence().perform_patcher_setup, {"dev_mode": dev_mode}),
+        ("skins", "Syncing skin data…", SkinSyncSequence().perform_skin_sync, {"test_fail": test_download_fail}),
     )
     errors: dict[str, Exception] = {}
     progress.update(message="Preparing D-Changer…", marquee=True)
@@ -242,9 +242,9 @@ def _run_launcher_headless(dev_mode: bool, test_download_fail: bool, progress) -
             func(_HeadlessDialog(progress), **kwargs)
         except SystemExit:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors[name] = exc
-            log.error(f"Launcher step '{name}' failed: {exc}", exc_info=True)
+            log.exception(f"Launcher step '{name}' failed")
 
     threads = [
         threading.Thread(target=run_step, args=(name, message, func, kwargs), name=f"Launcher-{name}", daemon=True)
@@ -353,9 +353,9 @@ def _run_launcher_dialog(dev_mode: bool, test_download_fail: bool) -> None:
                 # Win32Window.invoke), so only the message pump stays on the UI
                 # thread. Startup drops from the sum of the three to the slowest.
                 steps = (
-                    ("hashes", HashCheckSequence().perform_hash_check, dict(dev_mode=dev_mode)),
-                    ("patcher", PatcherSequence().perform_patcher_setup, dict(dev_mode=dev_mode)),
-                    ("skins", SkinSyncSequence().perform_skin_sync, dict(test_fail=test_download_fail)),
+                    ("hashes", HashCheckSequence().perform_hash_check, {"dev_mode": dev_mode}),
+                    ("patcher", PatcherSequence().perform_patcher_setup, {"dev_mode": dev_mode}),
+                    ("skins", SkinSyncSequence().perform_skin_sync, {"test_fail": test_download_fail}),
                 )
                 errors: dict[str, Exception] = {}
 
@@ -364,9 +364,9 @@ def _run_launcher_dialog(dev_mode: bool, test_download_fail: bool) -> None:
                         func(dialog, **kwargs)
                     except SystemExit:
                         raise
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         errors[name] = exc
-                        log.error(f"Launcher step '{name}' failed: {exc}", exc_info=True)
+                        log.exception(f"Launcher step '{name}' failed")
 
                 threads = [
                     threading.Thread(target=run_step, args=(name, func, kwargs), name=f"Launcher-{name}", daemon=True)
@@ -389,11 +389,11 @@ def _run_launcher_dialog(dev_mode: bool, test_download_fail: bool) -> None:
             except SystemExit:
                 updater_log.info("Launcher sequence exiting due to SystemExit (expected for update restart).")
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 result["error"] = exc
-                log.error(f"Launcher error: {exc}", exc_info=True)
+                log.exception("Launcher error")
                 _show_error(f"Failed to prepare D-Changer:\n\n{exc}")
-                updater_log.exception("Launcher sequence crashed", exc_info=True)
+                updater_log.exception("Launcher sequence crashed")
             finally:
                 dialog.allow_close()
                 if dialog.hwnd:

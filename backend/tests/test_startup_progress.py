@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Startup progress and the headless launcher dialog stand-in."""
 
 import unittest
