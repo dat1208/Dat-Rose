@@ -134,6 +134,25 @@ def read_game_build(game_dir: Path) -> Optional[int]:
     return None
 
 
+# How close the game build may get to the DLL's end of life before Rose warns
+EOL_WARNING_DAYS = 7
+
+
+def days_of_builds_left(status: LtkPatcherStatus, game_dir: Optional[Path]) -> Optional[int]:
+    """Days of game builds the DLL still accepts, or None when unknown.
+
+    The DLL compares the game's build timestamp against its end-of-life date,
+    so the countdown is measured in builds, not in calendar days. A value of 0
+    means the installed game is already refused.
+    """
+    if status.eol is None or game_dir is None:
+        return None
+    build = read_game_build(Path(game_dir))
+    if build is None:
+        return None
+    return (status.eol - build) // 86400
+
+
 def _find_eol_compare(code: bytes, lea_index: int) -> Optional[int]:
     """Find the closest ``cmp eax, imm32; jbe rel32`` before the message load."""
     start = max(0, lea_index - _EOL_SEARCH_WINDOW)

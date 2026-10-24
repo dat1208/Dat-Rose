@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from injection.tools.patcher import LtkPatcherStatus, read_game_build
+from injection.tools.patcher import LtkPatcherStatus, days_of_builds_left, read_game_build
 
 EOL = 1_791_097_200  # 2026-10-04
 
@@ -44,6 +44,28 @@ class PatcherEndOfLifeTests(unittest.TestCase):
         self.assertFalse(self.status.expired_for(self.game_dir))
         (self.game_dir / "League of Legends.exe").write_bytes(b"not a PE file")
         self.assertFalse(self.status.expired_for(self.game_dir))
+
+
+class PatcherExpiryWarningTests(unittest.TestCase):
+    """Rose can tell how many days of game builds the patcher still accepts."""
+
+    def setUp(self):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        self.game_dir = Path(temp_dir.name)
+        self.status = LtkPatcherStatus(host=Path(), dll=Path(), missing=[], eol=EOL)
+
+    def test_counts_the_builds_left(self):
+        write_game(self.game_dir, EOL - 86400)
+        self.assertEqual(days_of_builds_left(self.status, self.game_dir), 1)
+
+    def test_reports_zero_once_the_game_is_refused(self):
+        write_game(self.game_dir, EOL + 86400)
+        self.assertEqual(days_of_builds_left(self.status, self.game_dir), -1)
+
+    def test_unknown_without_a_game(self):
+        self.assertIsNone(days_of_builds_left(self.status, None))
+        self.assertIsNone(days_of_builds_left(self.status, self.game_dir))
 
 
 if __name__ == '__main__':
