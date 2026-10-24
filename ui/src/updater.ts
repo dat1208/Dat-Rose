@@ -27,8 +27,11 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
  * The engine is a separate process (a sidecar the Rust shell spawns), so the
  * Tauri updater quitting the window does not stop it. A running engine keeps
  * its loaded .pyd/.dll files open, and the NSIS installer then fails with
- * "Error opening file for writing" on the first locked file. Ask it to shut
- * down cleanly and give it a moment to release the files.
+ * "Error opening file for writing" on the first locked file.
+ *
+ * Ask it to shut down, then poll until it is actually gone. A fixed sleep is
+ * not enough: cleanup resumes the game and tears down Pengu, which can take
+ * longer than the window between the request and the installer starting.
  */
 async function stopEngine(): Promise<void> {
   try {
@@ -37,9 +40,16 @@ async function stopEngine(): Promise<void> {
     // Engine already gone, or unreachable: nothing to stop.
     return;
   }
-  // The engine runs its cleanup (resume game, deactivate Pengu, kill
-  // mod-tools) before exiting; wait for it to release its files.
-  await new Promise((resolve) => setTimeout(resolve, 4000));
+  // The engine stops serving /api/status as it tears down, so a failed poll
+  // means it is gone. Give it up to 15s, matching the shell's own wait.
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      await invoke("api_get", { path: "/api/status" });
+    } catch {
+      return;
+    }
+  }
 }
 
 /** Download and install an available update, then restart the app. */
