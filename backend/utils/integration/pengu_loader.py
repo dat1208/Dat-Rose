@@ -212,25 +212,14 @@ def _restore_plugin_enable_state(pengu_dir: Path, enabled: set[str], disabled: s
 
 def _get_bundled_pengu_dir() -> Optional[Path]:
     """Locate the bundled Pengu Loader directory (read-only location)."""
-    # 1. PyInstaller onefile: resources live under _MEIPASS
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        candidate = Path(meipass) / "Pengu Loader"
-        if candidate.exists():
-            return candidate
+    from utils.core.paths import get_bundle_dir
 
-    # 2. PyInstaller onedir: resources in _internal folder
     if getattr(sys, 'frozen', False):
-        app_dir = get_app_dir()
-        candidate = app_dir / "_internal" / "Pengu Loader"
-        if candidate.exists():
-            return candidate
-        # Fallback: directly alongside executable
-        candidate = app_dir / "Pengu Loader"
+        candidate = get_bundle_dir() / "Pengu Loader"
         if candidate.exists():
             return candidate
 
-    # 3. Development environment: relative to project root
+    # Development environment: relative to project root
     repo_dir = Path(__file__).resolve().parent.parent
     candidate = repo_dir / "Pengu Loader"
     if candidate.exists():

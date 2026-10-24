@@ -25,18 +25,9 @@ updater_log = get_named_logger("updater", prefix="log_updater")
 
 def _tools_dir() -> Path:
     """The injection tools directory (same resolution as the engine)."""
-    import sys
+    from utils.core.paths import get_tools_dir
 
-    if getattr(sys, "frozen", False):
-        # Resolve from the running executable: in onedir builds sys._MEIPASS is
-        # the builder's _internal folder, so an installed copy would look for
-        # its tools on the build machine.
-        base_dir = Path(sys.executable).parent
-        for candidate in (base_dir / "_internal" / "injection" / "tools", base_dir / "injection" / "tools"):
-            if candidate.exists():
-                return candidate
-        return base_dir / "_internal" / "injection" / "tools"
-    return Path(__file__).parent.parent.parent / "injection" / "tools"
+    return get_tools_dir()
 
 
 def _game_dir():

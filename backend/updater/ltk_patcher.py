@@ -191,10 +191,12 @@ def fetch_patcher(tools_dir: Path, force: bool = False) -> Path:
 
     # 1. A local install needs no network
     local = find_local_patcher()
-    if local:
+    if local and not _verifies_host(local / LTK_PATCHER_DLL):
         _copy_patcher(local, tools_dir)
         log.info(f"Copied the LTK patcher from {local}")
         return tools_dir
+    if local:
+        log.info(f"Ignoring the LTK patcher at {local}: it only runs under LTK Manager itself")
 
     # 2. Fetch the official installer, install it, and copy the files out
     release = sources.ltk_manager_release()

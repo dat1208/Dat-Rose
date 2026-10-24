@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from utils.core.logging import get_logger, log_action, log_success
-from utils.core.paths import get_classic_skins_dir, get_skins_dir, get_injection_dir
+from utils.core.paths import get_bundle_dir, get_classic_skins_dir, get_skins_dir, get_injection_dir
 from utils.core.issue_reporter import report_issue
 from utils.core.junction import safe_remove_entry
 
@@ -36,23 +36,12 @@ class SkinInjector:
         # Use injection folder as base if paths not provided
         # Handle both frozen (PyInstaller) and development environments
         if getattr(sys, 'frozen', False):
-            # Always resolve from the running executable, never from sys._MEIPASS:
-            # in onedir builds _MEIPASS is the _internal folder of the machine that
-            # built the bundle, so a copied/installed app looked for its tools in
-            # the builder's directory and failed with "Missing mod-tools.exe".
-            base_dir = Path(sys.executable).parent
-            possible_injection_dirs = [
-                base_dir / "_internal" / "injection",  # onedir (PyInstaller 6+)
-                base_dir / "injection",  # onedir (older layout)
-            ]
-            injection_dir = None
-            for dir_path in possible_injection_dirs:
-                if (dir_path / "tools" / "mod-tools.exe").exists():
-                    injection_dir = dir_path
-                    log.debug(f"Found injection directory at: {injection_dir}")
-                    break
-            if injection_dir is None:
-                injection_dir = possible_injection_dirs[0]
+            # Resolve from the running executable via get_bundle_dir(): in onedir
+            # builds sys._MEIPASS is the builder's _internal folder, so an
+            # installed copy looked for its tools on the build machine and
+            # failed with "Missing mod-tools.exe".
+            injection_dir = get_bundle_dir() / "injection"
+            if not (injection_dir / "tools" / "mod-tools.exe").exists():
                 log.warning(f"Injection directory not found, using default: {injection_dir}")
         else:
             # Running as Python script

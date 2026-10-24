@@ -50,30 +50,9 @@ class HashCheckSequence:
             updated = update_hash_files(status_callback=status_callback, dev_mode=dev_mode)
             
             # Verify hashes.game.txt exists before continuing
-            # Get the tools directory path (same logic as hash_updater)
-            if getattr(sys, 'frozen', False):
-                # Running as compiled executable
-                if hasattr(sys, '_MEIPASS'):
-                    # One-file mode
-                    base_path = Path(sys._MEIPASS)
-                    tools_dir = base_path / "injection" / "tools"
-                else:
-                    # One-dir mode
-                    base_dir = Path(sys.executable).parent
-                    possible_tools_dirs = [
-                        base_dir / "injection" / "tools",
-                        base_dir / "_internal" / "injection" / "tools",
-                    ]
-                    tools_dir = None
-                    for dir_path in possible_tools_dirs:
-                        if dir_path.exists():
-                            tools_dir = dir_path
-                            break
-                    if not tools_dir:
-                        tools_dir = possible_tools_dirs[0]
-            else:
-                # Running as Python script
-                tools_dir = Path(__file__).parent.parent.parent / "injection" / "tools"
+            from utils.core.paths import get_tools_dir
+
+            tools_dir = get_tools_dir()
             
             hashes_file = tools_dir / "hashes.game.txt"
             

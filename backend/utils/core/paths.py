@@ -276,23 +276,31 @@ def get_app_dir() -> Path:
         return Path(__file__).parent.parent.parent
 
 
+def get_bundle_dir() -> Path:
+    """Directory that holds the bundled data files (assets, injection tools).
+
+    Always derived from the running executable, never from ``sys._MEIPASS``:
+    in a PyInstaller onedir build ``_MEIPASS`` is the ``_internal`` folder of
+    the machine that built the bundle, so an installed copy would look for its
+    files in the builder's directory. This is the single source of truth for
+    every bundled path; do not re-derive it elsewhere.
+    """
+    if not getattr(sys, 'frozen', False):
+        return get_app_dir()
+    internal = Path(sys.executable).parent / "_internal"
+    return internal if internal.is_dir() else Path(sys.executable).parent
+
+
+def get_tools_dir() -> Path:
+    """The injection tools directory (mod-tools.exe, patcher, hashes)."""
+    return get_bundle_dir() / "injection" / "tools"
+
+
 def get_assets_dir() -> Path:
     """
     Get the base assets directory.
     """
-    if getattr(sys, 'frozen', False):
-        # Running as compiled executable
-        # Resolve from the running executable: in onedir builds sys._MEIPASS is
-        # the builder's _internal folder, so an installed copy would look for
-        # its assets on the build machine.
-        base_path = Path(sys.executable).parent / "_internal"
-        if not (base_path / "assets").is_dir():
-            base_path = Path(sys.executable).parent
-        return base_path / "assets"
-    else:
-        # Running as script
-        app_dir = get_app_dir()
-        return app_dir / "assets"
+    return get_bundle_dir() / "assets"
 
 
 def get_asset_path(asset_name: str) -> Path:

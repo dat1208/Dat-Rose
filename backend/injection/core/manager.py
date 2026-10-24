@@ -17,6 +17,7 @@ from config import (
 )
 from utils.core.logging import get_logger, log_action, log_success
 from utils.core.issue_reporter import report_issue
+from utils.core.paths import get_bundle_dir
 
 from .injector import SkinInjector
 from ..classic import is_classic_game_mode
@@ -509,22 +510,8 @@ class InjectionManager:
     def _get_injection_dir(self) -> Path:
         """Get the injection directory path (works in both frozen and development environments)"""
         if getattr(sys, 'frozen', False):
-            # Resolve from the running executable, never from sys._MEIPASS: in
-            # onedir builds _MEIPASS points at the builder's _internal folder.
-            base_dir = Path(sys.executable).parent
-            possible_injection_dirs = [
-                base_dir / "_internal" / "injection",  # onedir (PyInstaller 6+)
-                base_dir / "injection",  # onedir (older layout)
-            ]
-            injection_dir = None
-            for dir_path in possible_injection_dirs:
-                if (dir_path / "tools" / "mod-tools.exe").exists():
-                    injection_dir = dir_path
-                    break
-            if not injection_dir:
-                injection_dir = possible_injection_dirs[0]
-        else:
-            # Running as Python script
-            injection_dir = Path(__file__).parent.parent
-        
-        return injection_dir
+            # Resolve from the running executable via get_bundle_dir(): in onedir
+            # builds sys._MEIPASS points at the builder's _internal folder.
+            return get_bundle_dir() / "injection"
+        # Running as Python script
+        return Path(__file__).parent.parent

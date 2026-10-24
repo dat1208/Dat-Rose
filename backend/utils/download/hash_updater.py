@@ -176,17 +176,9 @@ def combine_hash_files(contents: list[bytes]) -> bytes:
 
 def _tools_dir() -> Path:
     """Where hashes.game.txt lives (works frozen and in development)."""
-    import sys
+    from utils.core.paths import get_tools_dir
 
-    if getattr(sys, "frozen", False):
-        if hasattr(sys, "_MEIPASS"):
-            return Path(sys._MEIPASS) / "injection" / "tools"
-        base_dir = Path(sys.executable).parent
-        for candidate in (base_dir / "injection" / "tools", base_dir / "_internal" / "injection" / "tools"):
-            if candidate.exists():
-                return candidate
-        return base_dir / "injection" / "tools"
-    return Path(__file__).parent.parent.parent / "injection" / "tools"
+    return get_tools_dir()
 
 
 def update_hash_files(
