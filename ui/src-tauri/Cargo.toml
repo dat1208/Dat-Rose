@@ -1,6 +1,6 @@
 [package]
 name = "d-changer"
-version = "0.1.12"
+version = "0.1.13"
 description = "D-Changer desktop UI"
 authors = ["D-Changer"]
 edition = "2021"
