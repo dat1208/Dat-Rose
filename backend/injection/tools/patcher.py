@@ -3,11 +3,12 @@
 """
 LTK patcher binaries (ltk_patcher_host.exe + ltk_patcher_dll.dll).
 
-Users provide their own copy (e.g. from an LTK Manager install); Rose does
-not ship or pin them. The DLL refuses game builds newer than its built-in
-end-of-life date, so we read that date and the game's build date to fail
-early instead of silently injecting nothing. A DLL past that date still works
-until League itself updates.
+The pair is fetched from a pinned LTK Manager commit by updater/ltk_patcher.py,
+which verifies the SHA-256 and Authenticode signature before installing it; it
+is not bundled with the app. The DLL refuses game builds newer than its
+built-in end-of-life date, so we read that date and the game's build date to
+fail early instead of silently injecting nothing. A DLL past that date still
+works until League itself updates.
 """
 
 import hashlib

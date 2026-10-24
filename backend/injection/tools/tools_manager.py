@@ -55,7 +55,8 @@ class ToolsManager:
         """Return the LTK patcher host if it is installed next to its hook DLL.
 
         The LTK Manager patcher (ltk_patcher_host.exe + ltk_patcher_dll.dll)
-        serves the overlay built by mkoverlay. Users provide their own copy.
+        serves the overlay built by mkoverlay. updater/ltk_patcher.py fetches
+        and verifies the pair; this only reports whether it is in place.
         """
         host = self.tools_dir / LTK_PATCHER_HOST
         if host.exists() and (self.tools_dir / LTK_PATCHER_DLL).exists():
