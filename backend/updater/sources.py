@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Upstream sources
 
@@ -14,7 +13,6 @@ User-Agent and is read-only.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import requests
 
@@ -32,7 +30,7 @@ class Release:
     tag: str
     assets: tuple[dict, ...]
 
-    def asset(self, predicate) -> Optional[dict]:
+    def asset(self, predicate) -> dict | None:
         return next((a for a in self.assets if predicate(a)), None)
 
 
@@ -45,7 +43,7 @@ def _session() -> requests.Session:
     return session
 
 
-def latest_release(repo: str, timeout: int = 20) -> Optional[Release]:
+def latest_release(repo: str, timeout: int = 20) -> Release | None:
     """Latest release of owner/name, or None when it cannot be read."""
     try:
         response = _session().get(f"{_API}/repos/{repo}/releases/latest", timeout=timeout)
@@ -57,7 +55,7 @@ def latest_release(repo: str, timeout: int = 20) -> Optional[Release]:
         return None
 
 
-def latest_commit_sha(repo: str, path: str = "", branch: str = "main", timeout: int = 15) -> Optional[str]:
+def latest_commit_sha(repo: str, path: str = "", branch: str = "main", timeout: int = 15) -> str | None:
     """Newest commit SHA of owner/name (optionally under a path)."""
     params = {"sha": branch, "per_page": 1}
     if path:
@@ -80,12 +78,12 @@ PENGU_LOADER_REPO = "PenguLoader/PenguLoader"
 ROSE_REPO = "Alban1911/Rose"
 
 
-def ltk_manager_release() -> Optional[Release]:
+def ltk_manager_release() -> Release | None:
     """LTK Manager, which ships the patcher D-Changer extracts."""
     return latest_release(LTK_MANAGER_REPO)
 
 
-def ltk_manager_installer(release: Optional[Release]) -> Optional[dict]:
+def ltk_manager_installer(release: Release | None) -> dict | None:
     """The Windows installer asset of an LTK Manager release."""
     if not release:
         return None
@@ -95,15 +93,15 @@ def ltk_manager_installer(release: Optional[Release]) -> Optional[dict]:
     )
 
 
-def league_skins_sha() -> Optional[str]:
+def league_skins_sha() -> str | None:
     """Current commit of the skin library."""
     return latest_commit_sha(LEAGUE_SKINS_REPO, branch="main")
 
 
-def pengu_loader_release() -> Optional[Release]:
+def pengu_loader_release() -> Release | None:
     return latest_release(PENGU_LOADER_REPO)
 
 
-def rose_release() -> Optional[Release]:
+def rose_release() -> Release | None:
     """Upstream Rose, tracked to notice new engine work worth porting."""
     return latest_release(ROSE_REPO)

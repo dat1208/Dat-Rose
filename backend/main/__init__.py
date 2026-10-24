@@ -303,10 +303,35 @@ def _check_dll_present() -> bool:
     # The DLL keeps working past its end of life until League updates, so only
     # block when the game Rose last found is a build it refuses
     league_path = get_config_option("General", "leaguePath")
-    if status.expired_for(Path(league_path) if league_path else None):
+    game_dir = Path(league_path) if league_path else None
+    if status.expired_for(game_dir):
         eol = datetime.fromtimestamp(status.eol).strftime("%Y-%m-%d %H:%M")
         return _show_dll_dialog(tools_dir, reason="expired", detail=eol)
+    _warn_patcher_expiring_soon(status, game_dir)
     return True
+
+
+def _warn_patcher_expiring_soon(status, game_dir) -> None:
+    """Log a warning while the patcher still works but the next game update may break it.
+
+    The DLL refuses game builds newer than its end-of-life date, so a patcher
+    that is about to expire is a countdown: the next League patch stops skin
+    injection until a newer patcher is available. Nothing can be done from
+    inside Rose (newer LTK patchers refuse to run outside LTK Manager), so at
+    least say it plainly instead of failing silently later.
+    """
+    from injection.tools.patcher import EOL_WARNING_DAYS, days_of_builds_left
+
+    left = days_of_builds_left(status, game_dir)
+    if left is None or left <= 0:
+        return  # already handled by expired_for(), or nothing to measure
+    if left <= EOL_WARNING_DAYS:
+        log.warning(
+            "[INJECT] The LTK patcher expires in %d day(s) of game builds: "
+            "the next League update will stop skin injection until a newer "
+            "patcher is available",
+            left,
+        )
 
 
 # Setup console first (before any imports that might use it)
@@ -747,11 +772,13 @@ def main() -> None:
     """Program entry point that prepares and launches Rose."""
     args = setup_arguments()
 
-    # Elevate before anything else. The launcher installs the LTK patcher
-    # silently, which needs admin (its installer is per-machine), so the whole
-    # startup must already be elevated. request_admin_elevation relaunches this
-    # process elevated and exits the current one; --dev skips it so developers
-    # can run unelevated.
+    # Elevate before anything else. Enabling auto-start registers a Task
+    # Scheduler task with /rl highest, which needs admin; the launcher cannot
+    # prompt for it later without losing the user's settings change. The LTK
+    # patcher no longer needs elevation: it is downloaded and written to the
+    # user's tools folder, not installed per-machine. request_admin_elevation
+    # relaunches this process elevated and exits the current one; --dev skips
+    # it so developers can run unelevated.
     if sys.platform == "win32" and not args.dev:
         from utils.system.admin_utils import is_admin, request_admin_elevation
 

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Patcher Sequence
 
 Makes sure the LTK patcher is present before the app starts. Rose asked the
 user to copy ltk_patcher_host.exe and ltk_patcher_dll.dll by hand; D-Changer
-fetches them from a local LTK Manager install or from its official release.
+fetches them from a pinned LTK Manager commit and verifies them.
 
-Never fatal: if the patcher cannot be obtained (offline, no release), startup
+Never fatal: if the patcher cannot be obtained (offline, bad download), startup
 continues and the injection system reports the missing files when it needs
 them.
 """
@@ -16,8 +15,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from utils.core.logging import get_logger, get_named_logger
 from updater import ltk_patcher
+from utils.core.logging import get_logger, get_named_logger
 
 log = get_logger()
 updater_log = get_named_logger("updater", prefix="log_updater")
@@ -78,7 +77,7 @@ class PatcherSequence:
             dialog.set_marquee(False)
             dialog.pump_messages()
             return False
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.exception("Unexpected error while preparing the LTK patcher")
             updater_log.warning(f"Patcher setup error: {exc}")
             dialog.set_status("Skin patcher check failed - continuing")

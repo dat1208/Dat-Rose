@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Download verification
 
@@ -13,7 +12,6 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Optional
 
 from utils.core.logging import get_logger
 
@@ -22,7 +20,7 @@ log = get_logger()
 _CHUNK = 1024 * 1024
 
 
-def sha256_file(path: Path) -> Optional[str]:
+def sha256_file(path: Path) -> str | None:
     """Hex SHA-256 of a file, or None when it cannot be read."""
     digest = hashlib.sha256()
     try:
@@ -35,7 +33,7 @@ def sha256_file(path: Path) -> Optional[str]:
     return digest.hexdigest()
 
 
-def digest_of_asset(asset: dict) -> Optional[str]:
+def digest_of_asset(asset: dict) -> str | None:
     """The ``sha256:...`` digest GitHub reports for a release asset, if any."""
     digest = asset.get("digest")
     if isinstance(digest, str) and digest.startswith("sha256:"):
@@ -43,7 +41,7 @@ def digest_of_asset(asset: dict) -> Optional[str]:
     return None
 
 
-def verify_file(path: Path, expected_sha256: Optional[str]) -> bool:
+def verify_file(path: Path, expected_sha256: str | None) -> bool:
     """True when the file matches the expected digest.
 
     With no expected digest the file is accepted as-is (the caller decided the

@@ -33,13 +33,11 @@ else:
 injection_binaries = [
     'injection/tools/mod-tools.exe',
     'injection/tools/cslol-dll.dll',
-    # The patcher pair is shipped, not fetched: LTK Manager 1.30.4+ ships a DLL
-    # that refuses to overlay unless its host is ltk-manager.exe itself, so a
-    # fetched pair breaks injection. This older pair has no host check and is
-    # the one Rose itself uses. Replace both files together, never one alone.
-    'injection/tools/ltk_patcher_host.exe',
-    'injection/tools/ltk_patcher_dll.dll',
 ]
+# The LTK patcher pair is deliberately not bundled: updater/ltk_patcher.py
+# fetches both files from a pinned LTK Manager commit and verifies them at
+# startup, so shipping a copy would only go stale (the DLL has an end-of-life
+# date) and could shadow the verified one.
 injection_data_files = [
     'injection/tools/hashes.game.txt',
     'injection/tools/cslol-dll.stub',
@@ -295,9 +293,8 @@ excludes = [
 
 
 def filter_binaries(binaries_list):
-    # The patcher pair is shipped now (see injection_binaries above): LTK
-    # Manager 1.30.4+ ships a DLL that only runs under LTK Manager itself, so
-    # fetching it breaks injection. Keep the bundled pair.
+    # The LTK patcher is not bundled (see injection_binaries above): the updater
+    # fetches a pinned, verified pair at startup, so nothing is filtered here.
     return [(name, path, typ) for name, path, typ in binaries_list]
 
 
