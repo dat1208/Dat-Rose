@@ -78,7 +78,7 @@ def ltk_failure_cause(reason: str) -> str:
         return "hook"
     if reason == LATE_JOIN_ERROR:
         return "late"
-    if "disabling overlay" in reason:
+    if "disabling overlay" in reason or "refusing overlay" in reason:
         return "rejected"
     if reason.startswith("could not start"):
         return "start"
@@ -246,6 +246,8 @@ class OverlayManager:
         # Use overlay directory (should already be clean from _clean_overlay_dir)
         overlay_dir = self.mods_dir.parent / "overlay"
         overlay_dir.mkdir(parents=True, exist_ok=True)
+        # The previous game left it hidden + system: clear that before writing
+        self._unhide_directory(overlay_dir)
         
         ltk_host = tools_manager.detect_ltk_patcher()
         if not ltk_host:
@@ -498,7 +500,11 @@ class OverlayManager:
                         # e.g. "overlay verification failed, disabling overlay"
                         message = line.split(" ERROR ", 1)[1]
                         log.error(f"[INJECT] LTK patcher DLL: {message}")
-                        if "disabling overlay" in message:
+                        if "disabling overlay" in message or "refusing overlay" in message:
+                            # "refusing overlay" is what the DLL says when it rejects the
+                            # overlay outright (host verification, bad WADs): the game then
+                            # runs with the stock skin, so this has to fail the injection
+                            # instead of being logged and forgotten.
                             session["error"] = message
             except Exception as e:
                 log.debug(f"[INJECT] Error reading LTK patcher output: {e}")
@@ -659,7 +665,9 @@ class OverlayManager:
         if cause == "late":
             return f"The game started before the patcher was ready. Retry the next game. {logs}"
         if cause == "rejected":
-            return ("The patcher rejected the overlay built for this game. Try another skin or turn off custom mods; "
+            return ("The patcher rejected the overlay built for this game, so the game ran with the stock skin. "
+                    "If it names a file (e.g. ltk-manager.exe), that program was running and the patcher refused to "
+                    "share the game with it: close it and retry. Otherwise try another skin or turn off custom mods; "
                     f"if every skin fails, update your LTK patcher files. {logs}")
         if cause == "start":
             return ("Rose could not start ltk_patcher_host.exe. Check that it is still in Rose's tools folder: "
@@ -802,6 +810,28 @@ class OverlayManager:
             log.debug(f"[INJECT] Hidden overlay directory: {path}")
         except Exception as e:
             log.debug(f"[INJECT] Could not hide overlay directory: {e}")
+
+    @staticmethod
+    def _unhide_directory(path: Path):
+        """Drop the hidden + system attributes again (Windows only).
+
+        mkoverlay writes into the overlay directory, and the patcher DLL opens
+        the WADs in it. Both were left with FILE_ATTRIBUTE_SYSTEM by the
+        previous game, which is enough for the DLL to refuse the overlay
+        ("host verification failed, refusing overlay").
+        """
+        import sys
+        if sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            FILE_ATTRIBUTE_NORMAL = 0x80
+            if path.exists():
+                ctypes.windll.kernel32.SetFileAttributesW(str(path), FILE_ATTRIBUTE_NORMAL)
+                for item in path.rglob('*'):
+                    ctypes.windll.kernel32.SetFileAttributesW(str(item), FILE_ATTRIBUTE_NORMAL)
+        except Exception as e:
+            log.debug(f"[INJECT] Could not unhide overlay directory: {e}")
 
     def mk_overlay_only(self, mod_names: List[str], timeout: int = 60) -> int:
         """Create overlay using mkoverlay only (no runoverlay) - for testing"""

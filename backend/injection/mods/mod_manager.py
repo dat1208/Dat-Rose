@@ -49,6 +49,9 @@ class ModManager:
         """Clean the overlay directory to prevent file lock issues"""
         overlay_dir = self.mods_dir.parent / "overlay"
         try:
+            # The previous game left it hidden + system, and mkoverlay cannot
+            # write into a system directory: clear that first.
+            ModManager._unhide_directory(overlay_dir)
             empty_directory(overlay_dir)
             log.debug("[INJECT] Cleaned overlay directory")
         except Exception as e:
@@ -87,3 +90,19 @@ class ModManager:
                 ctypes.windll.kernel32.SetFileAttributesW(str(item), attrs)
         except Exception as e:
             log.debug("[INJECT] Could not hide directory %s: %s", path, e)
+
+    @staticmethod
+    def _unhide_directory(path: Path):
+        """Drop the hidden + system attributes again (Windows only)"""
+        import sys
+        if sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            FILE_ATTRIBUTE_NORMAL = 0x80
+            if path.exists():
+                ctypes.windll.kernel32.SetFileAttributesW(str(path), FILE_ATTRIBUTE_NORMAL)
+                for item in path.rglob('*'):
+                    ctypes.windll.kernel32.SetFileAttributesW(str(item), FILE_ATTRIBUTE_NORMAL)
+        except Exception as e:
+            log.debug("[INJECT] Could not unhide directory %s: %s", path, e)

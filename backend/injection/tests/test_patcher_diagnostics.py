@@ -62,6 +62,13 @@ class FailureHintTests(unittest.TestCase):
     def test_a_crashed_patcher_suggests_updating_it(self):
         self.assertIn('update your LTK patcher files', self.hint('exited with code 3221225477 (0xC0000005)'))
 
+    def test_a_refused_overlay_is_reported_as_rejected(self):
+        """The DLL says "refusing overlay" (not "disabling overlay") when it rejects it"""
+        reason = ('ltk_patcher_dll::verify: host verification failed, refusing overlay: '
+                  '[VRF00000008] (10428,ltk-manager.exe)')
+        self.assertEqual(ltk_failure_cause(reason), 'rejected')
+        self.assertIn('stock skin', self.hint(reason))
+
 
 class FailureCauseTests(unittest.TestCase):
     """Troubleshooting picks its hint by cause"""
@@ -134,6 +141,37 @@ class FailureContextTests(unittest.TestCase):
 
         self.assertEqual(code, 3)
         self.assertIn('exited with code 3', self.report_issue.call_args[0][2])
+
+    def test_a_refused_overlay_fails_the_injection(self):
+        """A refused overlay means the game runs the stock skin: the user must be told,
+        not left with a log line and a "completed" injection"""
+        proc = subprocess.Popen(
+            [sys.executable, '-c', 'import time; time.sleep(60)'],
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True,
+        )
+        self.addCleanup(proc.stdin.close)
+        self.addCleanup(lambda: proc.poll() is None and proc.kill())
+        session = {
+            'proc': proc,
+            'session': {'state': None, 'error': None, 'eol': False},
+            'reader': threading.Thread(target=lambda: None),
+            'log': None,
+        }
+        session['reader'].start()
+        refused = ('ltk_patcher_dll::verify: host verification failed, refusing overlay: '
+                   '[VRF00000008] (10428,ltk-manager.exe)')
+
+        def emit_then_fail():
+            # What the reader thread does with the DLL's line, then the game exits
+            session['session']['error'] = refused
+            proc.kill()
+
+        with patch.object(OverlayManager, '_running_game', return_value=None),                 patch.object(OverlayManager, '_stop_ltk_patcher'),                 self.assertLogs(level='ERROR'):
+            threading.Timer(0.2, emit_then_fail).start()
+            code = self.overlay._run_ltk_patcher(session, self.overlay_dir)
+
+        self.assertEqual(code, 1)
+        self.assertIn('refusing overlay', self.report_issue.call_args[0][2])
 
 
 if __name__ == '__main__':
