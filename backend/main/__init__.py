@@ -772,11 +772,13 @@ def main() -> None:
     """Program entry point that prepares and launches Rose."""
     args = setup_arguments()
 
-    # Elevate before anything else. The launcher installs the LTK patcher
-    # silently, which needs admin (its installer is per-machine), so the whole
-    # startup must already be elevated. request_admin_elevation relaunches this
-    # process elevated and exits the current one; --dev skips it so developers
-    # can run unelevated.
+    # Elevate before anything else. Enabling auto-start registers a Task
+    # Scheduler task with /rl highest, which needs admin; the launcher cannot
+    # prompt for it later without losing the user's settings change. The LTK
+    # patcher no longer needs elevation: it is downloaded and written to the
+    # user's tools folder, not installed per-machine. request_admin_elevation
+    # relaunches this process elevated and exits the current one; --dev skips
+    # it so developers can run unelevated.
     if sys.platform == "win32" and not args.dev:
         from utils.system.admin_utils import is_admin, request_admin_elevation
 

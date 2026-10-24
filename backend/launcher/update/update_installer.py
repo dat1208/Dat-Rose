@@ -10,11 +10,11 @@ import shutil
 import subprocess
 import sys
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 from utils.core.logging import get_named_logger
-from utils.core.safe_extract import safe_extract, is_safe_path
+from utils.core.safe_extract import safe_extract
 
 updater_log = get_named_logger("updater", prefix="log_updater")
 
@@ -23,7 +23,8 @@ PERSISTENT_ROOT_FILES = ("icon.ico", "unins000.exe", "unins000.dat")
 # User-provided files that should survive updates (relative to install dir)
 # In frozen builds, files are under _internal/
 PERSISTENT_USER_FILES = (
-    # User-provided LTK patcher, not redistributed with Rose
+    # LTK patcher pair, fetched and verified by updater/ltk_patcher.py at
+    # startup: keep whatever is installed instead of overwriting it
     "_internal/injection/tools/ltk_patcher_host.exe",
     "_internal/injection/tools/ltk_patcher_dll.dll",
 )
@@ -84,7 +85,7 @@ class UpdateInstaller:
         staging_dir: Path,
         progress_callback: Callable[[int], None],
         status_callback: Callable[[str], None],
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Extract update ZIP to staging directory
 
         Args:
@@ -218,7 +219,7 @@ class UpdateInstaller:
         return True
 
     @staticmethod
-    def _resolve_extracted_root(staging_dir: Path) -> Optional[Path]:
+    def _resolve_extracted_root(staging_dir: Path) -> Path | None:
         """Return the directory that contains the update payload."""
         candidates = [p for p in staging_dir.iterdir() if not p.name.startswith("__MACOSX")]
         if not candidates:
