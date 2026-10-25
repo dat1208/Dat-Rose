@@ -46,16 +46,30 @@ PATCHER_FILES = (LTK_PATCHER_HOST, LTK_PATCHER_DLL)
 
 # The one place the patcher binaries are pinned. Update all three fields per
 # file together, after re-downloading the commit and re-hashing it by hand.
-PIN_COMMIT = "a59a336b1a1e3c4dd74e671d6685da9ef901aee3"
+#
+# Pinned to 08468a32, not to the newest commit. From 46198022 onward the DLL
+# checks the process that started the game against a hardcoded allowlist
+# (ltk_patcher_host.exe, ltk-manager.exe, explorer.exe) and refuses the overlay
+# with "host verification failed, refusing overlay: [VRF00000008]" when the
+# parent is anything else. D-Changer's engine spawns the host itself, so the
+# parent is dchanger-backend.exe, which is not on that list: every injection
+# with a newer DLL fails and the game runs with the stock skin. This pair has
+# no such check and is what Rose itself ships.
+#
+# The cost: this DLL's built-in end-of-life date is 2026-10-18, already past.
+# It still works until League ships a build newer than that date, at which
+# point injection stops and the pin has to move to a DLL that accepts a
+# D-Changer host.
+PIN_COMMIT = "08468a32392f43dc604ebf7a8fcaf05c2bbeacb9"
 PIN_DIR = "src-tauri/resources"
 PIN = {
     LTK_PATCHER_HOST: (
-        "27de1bfdbf37129e42c12b18cc7b4f75c15d39bcd7afefe65c4c33d0e99fe856",
-        1239304,
+        "23fa1aaeda1a0c743da44227f179084e1fb81c7cd262144a3c8604ffc49d3bc1",
+        1238272,
     ),
     LTK_PATCHER_DLL: (
-        "0b024a3a839f55ff7cf7ee93d9ed2078bcbb07d3b7f320463d678f8a6209e5ff",
-        834816,
+        "6d419057e6667994ba752ad0fb089b363db98267618644d7f7b6632441a21d74",
+        764160,
     ),
 }
 
@@ -149,11 +163,11 @@ def _discard(downloads: list[_Download]) -> None:
 
 
 def _verifies_host(dll: Path) -> bool:
-    """True when the DLL contains the host-verification refusal message.
+    """True when the DLL carries the host-verification refusal message.
 
-    The newest LTK DLL still carries the "host verification failed" string but
-    works with ltk_patcher_host.exe from the same commit, so this is only
-    logged: it must never block replacing the pair.
+    Only logged. The pinned DLL has no such check, so a True here means the
+    file is not the pinned one; the pin comparison is what decides whether it
+    is replaced, never this.
     """
     try:
         return b"host verification failed" in dll.read_bytes()
@@ -204,8 +218,9 @@ def fetch_patcher(tools_dir: Path, force: bool = False) -> Path:
 
     if _verifies_host(tools_dir / LTK_PATCHER_DLL):
         log.warning(
-            "The LTK patcher DLL mentions host verification; it still works with "
-            "ltk_patcher_host.exe from the same commit, so it was installed"
+            "The installed LTK patcher DLL carries a host verification check; "
+            "it will refuse the overlay when D-Changer starts the game. The pin "
+            "is a pair without that check, so check PIN_COMMIT"
         )
     log.info(f"Installed the LTK patcher from {PIN_COMMIT[:10]}")
     return tools_dir

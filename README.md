@@ -127,12 +127,13 @@ Notes that are easy to get wrong:
 - Files come from `raw.githubusercontent.com/LeagueToolkit/ltk-manager/<commit>/src-tauri/resources/<name>`.
 - Each download goes to a temp file in the target directory, is checked for size, SHA-256 and (on Windows) Authenticode `Valid`, then moved in with `os.replace`. A failed download leaves the existing pair untouched.
 - `fetch_patcher` compares the **installed pair against the pin**, not just its presence. A pair left by an older build is replaced on the next start. This was a real bug: presence-only checking meant an install kept a stale DLL forever.
-- `_verifies_host` only logs a warning. The newest DLL still contains the `host verification failed` string but works with `ltk_patcher_host.exe` from the same commit, so that string must never block an install.
+- `_verifies_host` only logs a warning; the pin comparison decides what is installed.
+- **Do not move the pin to a newer commit without testing an injection.** From `46198022` onward the DLL checks the process that started the game against a hardcoded allowlist (`ltk_patcher_host.exe`, `ltk-manager.exe`, `explorer.exe`) and refuses the overlay with `host verification failed, refusing overlay: [VRF00000008]` when the parent is anything else. D-Changer's engine spawns the host itself, so the parent is `dchanger-backend.exe`, which is not on that list: every injection fails and the game runs with the stock skin. The pinned pair (`08468a32`) has no such check. Its end-of-life date is 2026-10-18, already past, so it works only until League ships a build newer than that.
 - `patcher_is_stale` compares the DLL's built-in end-of-life date against the **game executable's build timestamp**, not the wall clock. A DLL past its date keeps working until League itself updates.
 
 The patcher is **not bundled** (`D-Changer.spec` excludes it). A shipped copy would only go stale and could shadow the verified one.
 
-**Maintenance:** the DLL has an end-of-life date. When it passes, update `PIN_COMMIT` and both hashes after re-downloading and re-verifying by hand. Do not trust a value copied from an issue or a previous session.
+**Maintenance:** the DLL has an end-of-life date. When it passes, update `PIN_COMMIT` and both hashes after re-downloading and re-verifying by hand, and test an actual injection before shipping: a newer DLL may refuse D-Changer as its host (see the host verification note above). Do not trust a value copied from an issue or a previous session.
 
 ## Injection
 
