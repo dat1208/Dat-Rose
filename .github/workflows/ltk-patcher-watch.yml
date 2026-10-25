@@ -1,0 +1,84 @@
+name: LTK patcher watch
+
+# The LTK patcher is pinned by hand in backend/updater/ltk_patcher.py. Its DLL
+# carries an end-of-life date: once League ships a build newer than that date,
+# injection stops working until the pin moves. This job looks for a newer pair
+# that D-Changer can actually use (signed, no host verification check) and
+# opens an issue when one exists, so the pin is updated before users notice.
+#
+# It never changes the pin itself: a new DLL must be tested with a real
+# injection first, which a runner cannot do.
+
+on:
+  schedule:
+    # Daily at 03:17 UTC. League patches on Tuesdays; a daily check catches a
+    # new LTK build within a day without hammering the API.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the engine's runtime dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+
+      - name: Look for a usable newer patcher pair
+        id: check
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/check_ltk_patcher.py --json "$env:RUNNER_TEMP/ltk-pin.json"
+          # Exit code 1 means a better pair exists; 0 means the pin is current.
+          if ($LASTEXITCODE -eq 1) {
+            "found=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "found=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Open an issue when a better pair exists
+        if: steps.check.outputs.found == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DETAILS_PATH: ${{ runner.temp }}/ltk-pin.json
+        run: |
+          $title = "LTK patcher: a newer usable pair is available"
+          $existing = gh issue list --state open --search "$title in:title" --json number --jq '.[0].number'
+          if ($existing) {
+            Write-Output "Issue #$existing already tracks this; not opening another."
+            exit 0
+          }
+          $details = Get-Content $env:DETAILS_PATH -Raw
+          $body = @"
+          `scripts/check_ltk_patcher.py` found a patcher pair that D-Changer can use
+          and whose end-of-life date is later than the pinned one.
+
+          ```json
+          $details
+          ```
+
+          To update:
+
+          1. Re-download both files from the commit above and re-hash them by hand.
+          2. Update `PIN_COMMIT` and both hashes in `backend/updater/ltk_patcher.py`.
+          3. **Test an actual injection.** A DLL can pass every automated check and
+             still refuse D-Changer as its host.
+          4. Bump the version and tag a release.
+          "@
+          gh issue create --title $title --body $body --label "dependencies"

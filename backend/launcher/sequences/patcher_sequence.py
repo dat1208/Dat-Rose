@@ -13,9 +13,12 @@ them.
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
+from injection.tools.patcher import LTK_PATCHER_DLL, read_dll_eol, read_game_build
 from updater import ltk_patcher
+from utils.core.issue_reporter import report_issue
 from utils.core.logging import get_logger, get_named_logger
 
 log = get_logger()
@@ -40,6 +43,35 @@ def _game_dir():
         return None
 
 
+def _warn_if_expired(tools_dir: Path, game_dir: Path | None) -> None:
+    """Report an expired patcher at startup, before an injection can fail.
+
+    Without this the user only learns the DLL is too old when a game loads with
+    the stock skin. The DLL's end-of-life date is fixed at build time, so the
+    only fix is a newer pin; say so instead of leaving it to the log.
+    """
+    if game_dir is None:
+        return
+    eol = read_dll_eol(tools_dir / LTK_PATCHER_DLL)
+    build = read_game_build(game_dir)
+    if eol is None or build is None or build <= eol:
+        return
+
+    eol_s = time.strftime("%Y-%m-%d", time.gmtime(eol))
+    build_s = time.strftime("%Y-%m-%d", time.gmtime(build))
+    updater_log.warning(
+        f"The LTK patcher expired for this game build (EOL {eol_s}, game {build_s}); "
+        "injection will not work until the pin is updated"
+    )
+    report_issue(
+        "LTK_PATCHER_EOL",
+        "error",
+        f"The LTK patcher expired on {eol_s}, and this game build is from {build_s}.",
+        hint="Injection will not work until D-Changer ships a newer patcher. "
+             "Update the app; if it is already current, report it with rose_*.log.",
+    )
+
+
 class PatcherSequence:
     """Ensures the LTK patcher is available before the app starts."""
 
@@ -60,11 +92,13 @@ class PatcherSequence:
 
         tools_dir = _tools_dir()
         try:
-            force = ltk_patcher.patcher_is_stale(tools_dir, _game_dir())
+            game_dir = _game_dir()
+            force = ltk_patcher.patcher_is_stale(tools_dir, game_dir)
             if force:
                 dialog.set_status("Updating the LTK patcher...")
                 dialog.pump_messages()
             ltk_patcher.fetch_patcher(tools_dir, force=force)
+            _warn_if_expired(tools_dir, game_dir)
             updater_log.info("LTK patcher is ready.")
             dialog.set_status("Skin patcher ready.")
             dialog.set_marquee(False)

@@ -135,6 +135,11 @@ The patcher is **not bundled** (`D-Changer.spec` excludes it). A shipped copy wo
 
 **Maintenance:** the DLL has an end-of-life date. When it passes, update `PIN_COMMIT` and both hashes after re-downloading and re-verifying by hand, and test an actual injection before shipping: a newer DLL may refuse D-Changer as its host (see the host verification note above). Do not trust a value copied from an issue or a previous session.
 
+Two things help here:
+
+- **Startup warning.** `launcher/sequences/patcher_sequence.py` compares the installed DLL's end-of-life date against the game build on every start and reports `LTK_PATCHER_EOL` in Diagnostics when the game is newer, instead of leaving the user to discover it when a game loads with the stock skin.
+- **`scripts/check_ltk_patcher.py`.** Walks the commits that touched `src-tauri/resources`, downloads each DLL, and reports the newest one that is Authenticode-signed, has no host verification check, and has a later end-of-life date than the pin. `.github/workflows/ltk-patcher-watch.yml` runs it daily and opens an issue when one exists. It never edits the pin: an automated check cannot prove a DLL injects.
+
 ## Injection
 
 `backend/injection/` is the Rose engine, kept largely intact.
@@ -260,7 +265,7 @@ These are real and deliberately not fixed yet:
 - **Startup can block on network.** The update check, hash download and patcher fetch all run before the main loop, each with generous timeouts. On a bad connection startup can take minutes with only progress text as feedback.
 - **Dead downloader code.** `utils/download/skin_downloader.py` (the `SkinDownloader` class) and `smart_skin_downloader.py` are unused; only `download_skins_on_startup` in the former is live, and it delegates to `repo_downloader`. `hashes_downloader.py` is likewise only re-exported.
 - **`safe_extract` does not reject symlink entries.** Path traversal and absolute paths are blocked; a symlink entry would pass validation. Only relevant off Windows, where `zipfile` does not create symlinks by default.
-- **Patcher DLL end-of-life.** The pinned DLL expires; after that date a League update breaks injection until the pin is refreshed.
+- **Patcher DLL end-of-life.** The pinned DLL expires; after that date a League update breaks injection until the pin is refreshed. The app now reports this in Diagnostics at startup (before an injection can fail), and `.github/workflows/ltk-patcher-watch.yml` opens an issue when a newer usable pair appears. Neither can extend the date: only a new LTK build can.
 
 ## Disclaimer
 
