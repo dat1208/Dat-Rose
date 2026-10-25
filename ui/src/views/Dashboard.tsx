@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Status } from "../api";
 import { useI18n } from "../i18n";
 
@@ -14,7 +15,9 @@ function Pill({ on, onText = "ready", offText = "pending" }: { on: boolean; onTe
   return <span className={`pill ${on ? "good" : "warn"}`}>{on ? onText : offText}</span>;
 }
 
-export function Dashboard({ status, error }: { status: Status | null; error?: string | null }) {
+// Memoised so the 2s status poll only re-renders the dashboard when the status
+// object actually changed (App keeps the reference stable otherwise).
+export const Dashboard = memo(function Dashboard({ status, error }: { status: Status | null; error?: string | null }) {
   const { t } = useI18n();
 
   if (error) {
@@ -90,4 +93,4 @@ export function Dashboard({ status, error }: { status: Status | null; error?: st
       )}
     </section>
   );
-}
+});

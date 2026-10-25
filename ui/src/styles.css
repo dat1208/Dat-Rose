@@ -34,9 +34,21 @@ body,
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 80% -10%, #1a2133 0%, var(--bg-0) 55%);
+  background: var(--bg-0);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+}
+
+/* The gradient sits on a fixed layer instead of the body background. A
+   background-image on body is repainted whenever the content scrolls or the
+   view re-renders, which showed up as a visible hitch on every tab click. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(1200px 600px at 80% -10%, #1a2133 0%, var(--bg-0) 55%);
 }
 
 .app {
@@ -49,7 +61,7 @@ body {
 .sidebar {
   width: 216px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+  background: var(--bg-1);
   border-right: 1px solid var(--border-soft);
   padding: 20px 14px;
   display: flex;
@@ -69,7 +81,6 @@ body {
   height: 30px;
   border-radius: 8px;
   object-fit: contain;
-  filter: drop-shadow(0 0 10px var(--accent-glow));
 }
 
 .brand h1 {
@@ -171,6 +182,8 @@ body {
   flex: 1;
   padding: 28px 32px;
   overflow-y: auto;
+  /* Keep the scroll container out of the parent's layout/paint work. */
+  contain: layout paint style;
 }
 
 .content h2 {
@@ -187,7 +200,7 @@ body {
 }
 
 .card {
-  background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  background: var(--bg-2);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   padding: 18px 20px;
@@ -223,6 +236,10 @@ body {
 .row .value {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
+  /* A value that changes width on every poll would reflow the row; give it a
+     stable box so the layout does not shift. */
+  min-width: 4ch;
+  text-align: right;
 }
 
 .pill {
@@ -275,7 +292,7 @@ input:focus {
 }
 
 button {
-  background: linear-gradient(180deg, var(--accent) 0%, #3d78e6 100%);
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: var(--radius-sm);
@@ -283,11 +300,13 @@ button {
   cursor: pointer;
   font-size: 13.5px;
   font-weight: 550;
-  transition: filter 0.15s, transform 0.05s;
+  transition: background 0.15s, transform 0.05s;
 }
 
+/* Hover used `filter: brightness()`, which forces the webview to re-rasterise
+   the button on every hover; a background swap is a cheap repaint. */
 button:hover:not(:disabled) {
-  filter: brightness(1.1);
+  background: #3d78e6;
 }
 
 button:active:not(:disabled) {
@@ -438,7 +457,7 @@ button.ghost:hover:not(:disabled) {
 
 .progress .bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent) 0%, #7b5cff 100%);
+  background: var(--accent);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -446,6 +465,9 @@ button.ghost:hover:not(:disabled) {
 .progress .bar.marquee {
   width: 35% !important;
   animation: marquee 1.2s ease-in-out infinite;
+  /* Promote the animated bar so the marquee runs on the compositor instead of
+     repainting the card every frame. */
+  will-change: transform;
 }
 
 @keyframes marquee {
@@ -486,6 +508,9 @@ button.ghost:hover:not(:disabled) {
   white-space: pre-wrap;
   word-break: break-word;
   color: #b8c0d0;
+  /* The log pane is rewritten every poll; containing it keeps the reflow
+     inside the pane instead of the whole view. */
+  contain: content;
 }
 
 .logs::-webkit-scrollbar,

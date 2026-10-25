@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type Status } from "./api";
 import { Dashboard } from "./views/Dashboard";
 import { Profiles } from "./views/Profiles";
@@ -20,24 +20,36 @@ export function App() {
   const [updating, setUpdating] = useState(false);
 
   // Poll the engine status; the UI is a read-only view over the Python state.
+  //
+  // The status object is only replaced when something the UI renders actually
+  // changed. Every poll used to hand React a fresh object, which re-rendered the
+  // whole tree every 2s and made clicks feel like they stalled.
+  const lastStatus = useRef("");
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
       try {
         const next = await api.status();
-        if (alive) {
+        if (!alive) return;
+        // Compare the serialised form: cheap, and the payload is tiny.
+        const key = JSON.stringify(next);
+        if (key !== lastStatus.current) {
+          lastStatus.current = key;
           setStatus(next);
-          setError(null);
         }
+        setError((prev) => (prev === null ? prev : null));
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
+      // Chain the next poll only after this one settled, so a slow engine
+      // cannot pile up overlapping requests.
+      if (alive) timer = setTimeout(tick, 2000);
     };
     tick();
-    const timer = setInterval(tick, 2000);
     return () => {
       alive = false;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

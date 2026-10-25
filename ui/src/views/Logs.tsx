@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { useI18n } from "../i18n";
 
@@ -8,26 +8,44 @@ export function Logs() {
   const [error, setError] = useState<string | null>(null);
   const [auto, setAuto] = useState(true);
   const boxRef = useRef<HTMLPreElement>(null);
+  // The last text we rendered; used to skip a state update when the log has
+  // not grown, so the pane is not rewritten (and reflowed) every poll.
+  const lastText = useRef("");
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
-      setText(await api.logs(400));
-      setError(null);
+      const next = await api.logs(400);
+      if (next !== lastText.current) {
+        lastText.current = next;
+        setText(next);
+      }
+      setError((prev) => (prev === null ? prev : null));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  };
+  }, []);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
-  // Poll while auto-refresh is on, so the log follows the engine live.
+  // Poll while auto-refresh is on, so the log follows the engine live. The next
+  // poll is scheduled after the previous one settles, so a slow read cannot
+  // stack up overlapping requests.
   useEffect(() => {
     if (!auto) return;
-    const timer = setInterval(refresh, 2000);
-    return () => clearInterval(timer);
-  }, [auto]);
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      await refresh();
+      if (alive) timer = setTimeout(tick, 2000);
+    };
+    timer = setTimeout(tick, 2000);
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [auto, refresh]);
 
   useEffect(() => {
     if (auto && boxRef.current) {
