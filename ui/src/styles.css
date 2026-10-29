@@ -1,45 +1,54 @@
 /* ─────────────────────────────────────────────────────────────
-   Dat-Rose UI — "Mica" theme.
+   Dat-Rose UI — Dark Glassmorphism / Fluent Mica.
 
-   A graphite canvas with a few very large, very soft ambient lights
-   behind it, and frosted glass panels on top. The glass only reads as
-   glass when there is something to refract, so the ambient layer is the
-   load-bearing part of the effect: it is what the blur picks up.
+   Structure of this file:
+     1. Tokens
+     2. Reset + ambient light
+     3. Shell (app / sidebar / main / topbar)
+     4. Status chip + LED
+     5. Content, glass panels, hero, tiles
+     6. Rows, badges, forms, buttons
+     7. Logs, lists, progress, update banner
+     8. Motion preferences
 
-   Rules of the system:
-   - One accent (indigo) for interactive state, one (emerald) for health.
-   - No coloured glows on icons, no gradient text, no neon shadows.
-   - Every surface is a 1px hairline with a brighter top edge, so panels
-     catch light the way a real pane does.
+   Two rules keep the layout from breaking:
+     - The sidebar is a fixed 64px icon rail that CLIPS its children.
+       Nothing inside it may be wider than 64px.
+     - Every flex/grid child that holds text carries `min-width: 0`, so a
+       long label truncates instead of widening its parent.
    ───────────────────────────────────────────────────────────── */
 
+/* ── 1. Tokens ───────────────────────────────────────────── */
 :root {
-  /* Canvas: deep teal-emerald, not neutral graphite. */
-  --bg-0: #05100f;
-  --bg-1: #0a1a19;
+  /* Base window: dark slate, deliberately neutral. The colour in this UI
+     comes from the two ambient lights below, never from the canvas. */
+  --bg-0: #090b10;
+  --bg-1: #0d1117;
 
-  /* Glass. `--glass` is the panel fill; `--glass-raised` is one step up for
-     hover and for the active nav item. */
+  /* Glass surfaces. `--glass` is the panel fill, `--glass-raised` is the
+     hover / active step, `--glass-sunken` is for inset areas like logs. */
   --glass: rgba(255, 255, 255, 0.03);
-  --glass-raised: rgba(255, 255, 255, 0.07);
-  --glass-sunken: rgba(4, 16, 15, 0.5);
+  --glass-raised: rgba(255, 255, 255, 0.08);
+  --glass-sunken: rgba(15, 23, 42, 0.45);
 
-  /* Hairlines. `--edge` is the bright top edge that sells the pane. */
-  --border: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  /* Hairlines. The bright top edge is what makes a pane read as glass. */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
   --edge: rgba(255, 255, 255, 0.2);
 
-  /* Text. All four pass WCAG AA on the glass fill. */
-  --text: #ffffff;
-  --text-soft: #cfe3df;
-  --text-dim: #9db4b1;
-  --text-faint: #6b8380;
+  /* Text. `--text` is the only near-white; everything else steps down. */
+  --text: #f8fafc;
+  --text-soft: #cbd5e1;
+  --text-dim: #94a3b8;
+  --text-faint: #64748b;
 
   /* Accents */
-  --accent: #2dd4bf;
-  --accent-soft: rgba(45, 212, 191, 0.14);
+  --accent: #6366f1;
+  --accent-soft: rgba(99, 102, 241, 0.12);
   --good: #34d399;
+  --good-led: #10b981;
   --good-soft: rgba(16, 185, 129, 0.1);
+  --good-border: rgba(16, 185, 129, 0.25);
   --warn: #fbbf24;
   --warn-soft: rgba(251, 191, 36, 0.1);
   --bad: #fb7185;
@@ -47,8 +56,9 @@
 
   --radius: 12px;
   --radius-sm: 8px;
-  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  --blur: blur(16px) saturate(180%);
+  --blur: blur(20px) saturate(180%);
+  --shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 
   color-scheme: dark;
   font-family: "Inter", "Geist", "SF Pro Display", "Segoe UI Variable",
@@ -56,6 +66,7 @@
   font-size: 14px;
 }
 
+/* ── 2. Reset + ambient light ────────────────────────────── */
 * {
   box-sizing: border-box;
 }
@@ -76,58 +87,63 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* The ambient mesh lives on a fixed pseudo-element rather than on `body`.
-   A background-image on body is repainted on every scroll and re-render,
-   which showed up as a hitch on each tab switch. */
+/* Two soft lights sit behind everything and give the glass something to
+   refract. They live on a fixed pseudo-element rather than on `body` so a
+   scroll or re-render does not repaint them. */
 body::before {
   content: "";
   position: fixed;
-  inset: -20%;
-  z-index: -1;
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(48% 42% at 12% 8%, rgba(16, 185, 129, 0.26) 0%, transparent 70%),
-    radial-gradient(42% 38% at 90% 14%, rgba(45, 212, 191, 0.18) 0%, transparent 70%),
-    radial-gradient(50% 45% at 72% 96%, rgba(13, 148, 136, 0.22) 0%, transparent 70%),
-    radial-gradient(36% 32% at 6% 86%, rgba(52, 211, 153, 0.12) 0%, transparent 70%);
-  filter: blur(120px);
+    radial-gradient(
+      300px 300px at 88% 4%,
+      rgba(16, 185, 129, 0.12) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      250px 250px at 4% 96%,
+      rgba(99, 102, 241, 0.08) 0%,
+      transparent 70%
+    );
+  filter: blur(100px);
 }
 
-/* ── Shell ───────────────────────────────────────────────── */
+/* ── 3. Shell ────────────────────────────────────────────── */
 .app {
+  position: relative;
+  z-index: 1;
   display: flex;
   height: 100%;
-  /* Nothing in the shell may widen the window; every panel scrolls inside
-     its own box. */
   overflow: hidden;
 }
 
-/* ── Sidebar ─────────────────────────────────────────────── */
+/* ── Sidebar: 64px icon rail ─────────────────────────────── */
 .sidebar {
-  width: 72px;
-  flex-shrink: 0;
-  padding: 18px 0 16px;
+  width: 64px;
+  flex: 0 0 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  background: rgba(6, 24, 22, 0.45);
+  padding: 14px 0 12px;
+  background: rgba(13, 17, 23, 0.6);
   backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
   border-right: 1px solid var(--border);
-  /* The rail must clip: the nav labels and the language select are wider
-     than 72px, and with overflow visible they pushed the whole shell past
-     the window edge. Tooltips are rendered inside the rail instead of
-     escaping it. */
+  /* The rail clips. Labels are hidden outright, so nothing inside can be
+     wider than the column and push the shell past the window edge. */
   overflow: hidden;
-  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar .brand {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  margin-bottom: 10px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
   border-radius: var(--radius-sm);
   background: var(--glass-raised);
   border: 1px solid var(--border);
@@ -135,12 +151,12 @@ body::before {
 }
 
 .sidebar .brand .mark {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }
 
-/* The wordmark is part of the rail's expanded state only. */
+/* The wordmark has no place in a 64px rail; keep it for screen readers. */
 .sidebar .brand h1 {
   position: absolute;
   width: 1px;
@@ -153,175 +169,105 @@ body::before {
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  width: 100%;
   align-items: center;
+  gap: 6px;
+  width: 100%;
 }
 
 .sidebar nav button {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  height: 44px;
-  padding: 0;
-  text-align: left;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 13.5px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-/* Inactive: a dim icon, nothing else. No glow, no tint. */
-.sidebar nav button .nav-icon {
-  width: 44px;
-  height: 44px;
   display: grid;
   place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
   flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sidebar nav button .nav-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+/* No labels in the rail. They are removed from flow, not merely hidden, so
+   they cannot widen the button. */
+.sidebar nav button .nav-label {
+  display: none;
 }
 
 .sidebar nav button:hover {
   color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.sidebar nav button:hover .nav-icon {
-  background: var(--glass);
-}
-
-/* Active: white icon on a faint pane, plus a 3px accent rule at the rail
-   edge instead of a halo around the whole button. */
+/* Active: a plain white pane with a hairline. No accent ring, no halo. */
 .sidebar nav button.active {
-  color: var(--text);
-}
-
-.sidebar nav button.active .nav-icon {
+  color: #ffffff;
   background: var(--glass-raised);
-  border: 1px solid var(--border);
-  border-top-color: var(--edge);
-  color: var(--text);
+  border-color: var(--border-strong);
 }
 
-.sidebar nav button.active::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 3px;
-  height: 20px;
-  margin-top: -10px;
-  border-radius: 0 3px 3px 0;
-  background: var(--accent);
-}
-
-.sidebar nav button .nav-label {
-  opacity: 0;
-  transition: opacity 0.16s ease;
-}
-
-.sidebar:hover nav button .nav-label {
-  opacity: 1;
-}
-
-/* Tooltip for the collapsed rail. */
-/* The rail clips its children, so the label rides inside the button as a
-   small caption instead of a floating tooltip. */
-.sidebar nav button::after {
-  content: attr(data-label);
-  position: absolute;
-  left: 50%;
-  bottom: 2px;
-  transform: translateX(-50%);
-  max-width: 64px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 9px;
-  font-weight: 500;
-  line-height: 1;
-  color: var(--text-faint);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
-  z-index: 20;
-}
-
-.sidebar:hover nav button::after {
-  display: none;
-}
-
-.sidebar nav button:hover::after {
-  opacity: 1;
-}
+/* Tooltip. The rail clips its children, so a floating tooltip cannot be
+   positioned from inside it. The label is rendered as a native title
+   attribute instead (see App.tsx), which the webview draws above the
+   window and which costs no layout. */
 
 .sidebar .spacer {
   flex: 1;
 }
 
+/* Language control. In the rail it is icon-only; the select is visually
+   hidden but still focusable, and it is clamped so it cannot widen the rail. */
 .lang-switch {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 0;
-  font-size: 12px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   color: var(--text-dim);
-  white-space: nowrap;
-  /* The select is hidden in the rail; it must not reserve width. */
-  overflow: hidden;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.lang-switch:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .lang-switch .nav-icon {
-  width: 44px;
-  height: 44px;
   display: grid;
   place-items: center;
-  flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  color: var(--text-dim);
+  width: 20px;
+  height: 20px;
 }
 
 .lang-switch label {
-  opacity: 0;
-  transition: opacity 0.16s ease;
-}
-
-.sidebar:hover .lang-switch label {
-  opacity: 1;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .lang-switch select {
-  flex: 1;
-  min-width: 0;
-  background: var(--glass);
-  color: var(--text-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  font-size: 12px;
-  outline: none;
-  /* Hidden in the collapsed rail; pointer-events keeps the invisible control
-     from swallowing clicks meant for the page. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.16s ease, border-color 0.15s ease;
-}
-
-.sidebar:hover .lang-switch select {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.sidebar:hover .lang-switch select:focus {
-  border-color: var(--accent);
+  cursor: pointer;
+  border: none;
+  background: transparent;
 }
 
 /* ── Main column ─────────────────────────────────────────── */
@@ -330,6 +276,7 @@ body::before {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .topbar {
@@ -337,10 +284,11 @@ body::before {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 32px;
   flex-shrink: 0;
-  background: rgba(6, 24, 22, 0.4);
+  padding: 14px 28px;
+  background: rgba(13, 17, 23, 0.5);
   backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
   border-bottom: 1px solid var(--border);
 }
 
@@ -348,8 +296,9 @@ body::before {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   font-size: 13px;
-  color: var(--text-faint);
+  color: var(--text-dim);
 }
 
 .topbar .crumb strong {
@@ -359,14 +308,14 @@ body::before {
 
 .topbar .crumb .sep {
   color: var(--text-faint);
-  opacity: 0.6;
 }
 
-/* ── Status chip ─────────────────────────────────────────── */
+/* ── 4. Status chip + LED ────────────────────────────────── */
 .status-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 12.5px;
@@ -380,81 +329,78 @@ body::before {
 .status-chip.good {
   color: var(--good);
   background: var(--good-soft);
-  border-color: rgba(16, 185, 129, 0.28);
+  border-color: var(--good-border);
 }
 
 .status-chip.warn {
   color: var(--warn);
   background: var(--warn-soft);
-  border-color: rgba(251, 191, 36, 0.28);
+  border-color: rgba(251, 191, 36, 0.25);
 }
 
 .status-chip.bad {
   color: var(--bad);
   background: var(--bad-soft);
-  border-color: rgba(251, 113, 133, 0.28);
+  border-color: rgba(251, 113, 133, 0.25);
 }
 
-/* The LED. A tight 1px ring plus a small halo — enough to read as "lit"
-   without becoming a glow effect. */
 .dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--text-faint);
   flex-shrink: 0;
+  background: var(--text-faint);
 }
 
 .dot.good {
-  background: var(--good);
-  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12), 0 0 8px rgba(52, 211, 153, 0.55);
+  background: var(--good-led);
+  box-shadow: 0 0 8px var(--good-led);
 }
 
 .dot.warn {
   background: var(--warn);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.12), 0 0 8px rgba(251, 191, 36, 0.5);
+  box-shadow: 0 0 8px var(--warn);
 }
 
 .dot.bad {
   background: var(--bad);
-  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.12), 0 0 8px rgba(251, 113, 133, 0.5);
+  box-shadow: 0 0 8px var(--bad);
 }
 
-/* ── Content ─────────────────────────────────────────────── */
+/* ── 5. Content + glass panels ───────────────────────────── */
 .content {
   flex: 1;
-  min-height: 0;
   min-width: 0;
-  padding: 28px 32px 40px;
+  min-height: 0;
+  padding: 24px 28px 32px;
   overflow-x: hidden;
   overflow-y: auto;
-  /* Keep the scroll container out of the parent's layout/paint work. */
   contain: layout paint style;
 }
 
 .content h2 {
   margin: 0 0 4px;
   font-size: 24px;
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.4px;
   color: var(--text);
 }
 
 .subtitle {
-  margin: 0 0 24px;
+  margin: 0 0 22px;
   font-size: 13px;
   color: var(--text-dim);
 }
 
-/* ── Glass panel ─────────────────────────────────────────── */
-/* Every surface in the app is this one recipe. The bright top border is
-   what makes the pane read as glass rather than as a flat rectangle. */
+/* One glass recipe for every panel in the app. */
 .card,
 .tile,
 .hero {
   position: relative;
+  min-width: 0;
   background: var(--glass);
   backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--border);
   border-top-color: var(--edge);
   border-radius: var(--radius);
@@ -464,7 +410,6 @@ body::before {
 .card {
   padding: 18px 20px;
   margin-bottom: 16px;
-  min-width: 0;
 }
 
 .card h3 {
@@ -479,52 +424,33 @@ body::before {
 .hero {
   padding: 20px 22px;
   margin-bottom: 16px;
-  min-width: 0;
   overflow: hidden;
-}
-
-/* A single soft wash inside the hero, so the panel has its own light
-   source and does not look pasted onto the canvas. */
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    120% 140% at 0% 0%,
-    rgba(45, 212, 191, 0.12) 0%,
-    transparent 60%
-  );
-}
-
-.hero > * {
-  position: relative;
-  z-index: 1;
 }
 
 .hero .eyebrow {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   margin-bottom: 10px;
   font-size: 12.5px;
   font-weight: 500;
   color: var(--text-dim);
-  min-width: 0;
 }
 
 .hero .hero-title {
   margin: 0 0 6px;
   font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.5px;
+  font-weight: 700;
   line-height: 1.25;
+  letter-spacing: -0.5px;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
+/* The champion number is the one place colour is allowed in the hero. */
 .hero .hero-title .accent {
-  color: var(--accent);
+  color: var(--good);
 }
 
 .hero .hero-sub {
@@ -536,19 +462,18 @@ body::before {
 /* ── Stat tiles ──────────────────────────────────────────── */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
 
 .tile {
   padding: 14px 16px;
-  min-width: 0;
-  transition: border-color 0.18s ease, background 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease;
 }
 
 .tile:hover {
-  background: var(--glass-raised);
+  background: rgba(255, 255, 255, 0.05);
   border-color: var(--border-strong);
   border-top-color: var(--edge);
 }
@@ -557,10 +482,10 @@ body::before {
   display: flex;
   align-items: center;
   gap: 7px;
+  min-width: 0;
   margin-bottom: 8px;
   font-size: 12.5px;
   font-weight: 500;
-  letter-spacing: 0.2px;
   color: var(--text-dim);
 }
 
@@ -575,16 +500,13 @@ body::before {
   white-space: nowrap;
 }
 
-/* ── Key/value rows ──────────────────────────────────────── */
+/* ── 6. Rows, badges, forms, buttons ─────────────────────── */
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 10px 8px;
-  /* Inset the hover pill with padding only: a negative margin here widened
-     the card and produced a horizontal scrollbar. */
-  margin: 0;
   border-radius: var(--radius-sm);
   border-bottom: 1px solid var(--border);
   transition: background 0.15s ease;
@@ -599,25 +521,22 @@ body::before {
 }
 
 .row .label {
-  color: var(--text-dim);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-dim);
 }
 
 .row .value {
   flex-shrink: 0;
+  min-width: 4ch;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   color: var(--text-soft);
-  /* A value that changes width on every poll would reflow the row; give it a
-     stable box so the layout does not shift. */
-  min-width: 4ch;
-  text-align: right;
 }
 
-/* ── Badges ──────────────────────────────────────────────── */
 /* Neutral is the default: a disabled state should look disabled, not
    alarming. Colour is reserved for states that need attention. */
 .pill {
@@ -634,22 +553,21 @@ body::before {
 .pill.good {
   color: var(--good);
   background: var(--good-soft);
-  border-color: rgba(16, 185, 129, 0.24);
+  border-color: var(--good-border);
 }
 
 .pill.warn {
   color: var(--warn);
   background: var(--warn-soft);
-  border-color: rgba(251, 191, 36, 0.24);
+  border-color: rgba(251, 191, 36, 0.25);
 }
 
 .pill.bad {
   color: var(--bad);
   background: var(--bad-soft);
-  border-color: rgba(251, 113, 133, 0.24);
+  border-color: rgba(251, 113, 133, 0.25);
 }
 
-/* ── Forms ───────────────────────────────────────────────── */
 .form {
   display: flex;
   gap: 8px;
@@ -658,6 +576,7 @@ body::before {
 input[type="text"],
 input:not([type]) {
   flex: 1;
+  min-width: 0;
   padding: 9px 12px;
   font-size: 13.5px;
   color: var(--text);
@@ -681,8 +600,6 @@ input[type="checkbox"] {
   accent-color: var(--accent);
 }
 
-/* Primary button: a light pane, not a gradient slab. The accent is used
-   for the focus ring and the label, which keeps the palette to two notes. */
 button {
   padding: 9px 16px;
   font-size: 13.5px;
@@ -697,8 +614,8 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.11);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 button:active:not(:disabled) {
@@ -732,7 +649,7 @@ button.ghost:hover:not(:disabled) {
   font-size: 12.5px;
 }
 
-/* ── Logs ────────────────────────────────────────────────── */
+/* ── 7. Logs, lists, progress, banner ────────────────────── */
 .logbar {
   display: flex;
   align-items: center;
@@ -748,17 +665,15 @@ button.ghost:hover:not(:disabled) {
   color: var(--text-dim);
 }
 
-/* The Logs view is a flex column so the pane can fill whatever height is
-   left after the heading and toolbar. */
 .logs-view {
   display: flex;
   flex-direction: column;
-  /* Stretch to the scroll container's height minus its vertical padding. */
   min-height: calc(100% - 68px);
 }
 
 .logs {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   margin: 0;
   padding: 16px;
@@ -771,13 +686,13 @@ button.ghost:hover:not(:disabled) {
   word-break: break-word;
   background: var(--glass-sunken);
   backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--border);
   border-top-color: var(--edge);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 
-/* ── Lists ───────────────────────────────────────────────── */
 .kv,
 .issues {
   list-style: none;
@@ -804,7 +719,6 @@ button.ghost:hover:not(:disabled) {
   color: var(--warn);
 }
 
-/* ── Text helpers ────────────────────────────────────────── */
 .muted {
   color: var(--text-faint);
 }
@@ -826,7 +740,6 @@ button.ghost:hover:not(:disabled) {
   color: var(--text-soft);
 }
 
-/* ── Progress ────────────────────────────────────────────── */
 .progress {
   height: 6px;
   margin-top: 14px;
@@ -856,7 +769,6 @@ button.ghost:hover:not(:disabled) {
   }
 }
 
-/* ── Update banner ───────────────────────────────────────── */
 .update-banner {
   display: flex;
   align-items: center;
@@ -868,8 +780,9 @@ button.ghost:hover:not(:disabled) {
   color: var(--text-soft);
   background: var(--accent-soft);
   backdrop-filter: var(--blur);
-  border: 1px solid rgba(45, 212, 191, 0.3);
-  border-top-color: rgba(45, 212, 191, 0.45);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-top-color: rgba(99, 102, 241, 0.4);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
@@ -878,7 +791,7 @@ button.ghost:hover:not(:disabled) {
   flex-shrink: 0;
 }
 
-/* ── Motion ──────────────────────────────────────────────── */
+/* ── 8. Motion preferences ───────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

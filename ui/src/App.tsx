@@ -137,7 +137,8 @@ export function App() {
             <button
               key={id}
               className={tab === id ? "active" : ""}
-              data-label={t(label)}
+              title={t(label)}
+              aria-label={t(label)}
               onClick={() => setTab(id)}
             >
               <span className="nav-icon">{icon}</span>
