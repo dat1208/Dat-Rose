@@ -1,32 +1,58 @@
+/* ─────────────────────────────────────────────────────────────
+   Dat-Rose UI — "Mica" theme.
+
+   A graphite canvas with a few very large, very soft ambient lights
+   behind it, and frosted glass panels on top. The glass only reads as
+   glass when there is something to refract, so the ambient layer is the
+   load-bearing part of the effect: it is what the blur picks up.
+
+   Rules of the system:
+   - One accent (indigo) for interactive state, one (emerald) for health.
+   - No coloured glows on icons, no gradient text, no neon shadows.
+   - Every surface is a 1px hairline with a brighter top edge, so panels
+     catch light the way a real pane does.
+   ───────────────────────────────────────────────────────────── */
+
 :root {
-  /* Palette: "Neon Glass" — near-black canvas lit by violet and cyan glows,
-     with frosted glass surfaces on top. */
-  --bg-0: #0a0a0f;
-  --bg-1: #0e0e16;
-  --bg-2: rgba(255, 255, 255, 0.04);
-  --bg-3: rgba(255, 255, 255, 0.07);
-  --glass: rgba(255, 255, 255, 0.045);
-  --glass-strong: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.1);
-  --border-soft: rgba(255, 255, 255, 0.06);
-  --text: #f2f3f8;
-  --text-dim: #b9bdcc;
-  /* Raised from #6c7086: the old value failed WCAG AA (about 4.0:1 on the
-     canvas, 3.5:1 on cards) and made every secondary label sink. */
-  --text-faint: #8b90a6;
-  --violet: #7c5cff;
-  --cyan: #22d3ee;
+  /* Canvas */
+  --bg-0: #0a0b10;
+  --bg-1: #11131e;
+
+  /* Glass. `--glass` is the panel fill; `--glass-raised` is one step up for
+     hover and for the active nav item. */
+  --glass: rgba(255, 255, 255, 0.03);
+  --glass-raised: rgba(255, 255, 255, 0.07);
+  --glass-sunken: rgba(8, 10, 18, 0.45);
+
+  /* Hairlines. `--edge` is the bright top edge that sells the pane. */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --edge: rgba(255, 255, 255, 0.15);
+
+  /* Text. All four pass WCAG AA on the glass fill. */
+  --text: #ffffff;
+  --text-soft: #cbd5e1;
+  --text-dim: #94a3b8;
+  --text-faint: #64748b;
+
+  /* Accents */
   --accent: #8b7bff;
-  --accent-soft: rgba(124, 92, 255, 0.16);
-  --accent-glow: rgba(124, 92, 255, 0.45);
-  --gradient: linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%);
+  --accent-soft: rgba(139, 123, 255, 0.14);
   --good: #34d399;
+  --good-soft: rgba(16, 185, 129, 0.1);
   --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.1);
   --bad: #fb7185;
+  --bad-soft: rgba(251, 113, 133, 0.1);
+
   --radius: 12px;
   --radius-sm: 8px;
+  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --blur: blur(16px) saturate(180%);
+
   color-scheme: dark;
-  font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-family: "Inter", "Geist", "SF Pro Display", "Segoe UI Variable",
+    "Segoe UI", system-ui, sans-serif;
   font-size: 14px;
 }
 
@@ -46,119 +72,147 @@ body {
   color: var(--text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* The glows sit on a fixed layer instead of the body background. A
-   background-image on body is repainted whenever the content scrolls or the
-   view re-renders, which showed up as a visible hitch on every tab click. */
+/* The ambient mesh lives on a fixed pseudo-element rather than on `body`.
+   A background-image on body is repainted on every scroll and re-render,
+   which showed up as a hitch on each tab switch. */
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  inset: -20%;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(900px 520px at 12% -12%, rgba(124, 92, 255, 0.16) 0%, transparent 60%),
-    radial-gradient(800px 480px at 92% 4%, rgba(34, 211, 238, 0.09) 0%, transparent 62%),
-    var(--bg-0);
+    radial-gradient(45% 40% at 15% 10%, rgba(99, 102, 241, 0.2) 0%, transparent 70%),
+    radial-gradient(40% 35% at 88% 18%, rgba(56, 189, 248, 0.14) 0%, transparent 70%),
+    radial-gradient(45% 40% at 70% 95%, rgba(139, 92, 246, 0.16) 0%, transparent 70%),
+    radial-gradient(35% 30% at 8% 88%, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+  filter: blur(120px);
 }
 
+/* ── Shell ───────────────────────────────────────────────── */
 .app {
   display: flex;
-  height: 100vh;
-  overflow: hidden;
+  height: 100%;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sidebar {
   width: 72px;
   flex-shrink: 0;
-  background: var(--bg-1);
-  border-right: 1px solid var(--border);
   padding: 18px 0 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 6px;
+  background: rgba(15, 18, 30, 0.4);
+  backdrop-filter: var(--blur);
+  border-right: 1px solid var(--border);
   /* Visible so the collapsed-rail tooltips can escape the 72px column. */
   overflow: visible;
   transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sidebar:hover {
-  width: 232px;
+.sidebar .brand {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-raised);
+  border: 1px solid var(--border);
+  border-top-color: var(--edge);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 0 18px;
-  white-space: nowrap;
-}
-
-.brand .mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+.sidebar .brand .mark {
+  width: 26px;
+  height: 26px;
   object-fit: contain;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 1px var(--border), 0 6px 18px rgba(124, 92, 255, 0.35);
 }
 
-.brand h1 {
-  font-size: 15.5px;
-  font-weight: 650;
-  margin: 0;
-  letter-spacing: 0.2px;
-  background: var(--gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  opacity: 0;
-  transition: opacity 0.18s ease 0.05s;
-}
-
-.sidebar:hover .brand h1 {
-  opacity: 1;
+/* The wordmark is part of the rail's expanded state only. */
+.sidebar .brand h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  padding: 0 12px;
+  align-items: center;
 }
 
 .sidebar nav button {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
+  width: 100%;
+  height: 44px;
+  padding: 0;
   text-align: left;
   background: transparent;
   border: none;
-  color: var(--text-dim);
-  padding: 0;
-  height: 44px;
-  border-radius: 12px;
-  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.45);
   font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;
-  position: relative;
-  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
+/* Inactive: a dim icon, nothing else. No glow, no tint. */
 .sidebar nav button .nav-icon {
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 12px;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar nav button:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sidebar nav button:hover .nav-icon {
+  background: var(--glass);
+}
+
+/* Active: white icon on a faint pane, plus a 3px accent rule at the rail
+   edge instead of a halo around the whole button. */
+.sidebar nav button.active {
+  color: var(--text);
+}
+
+.sidebar nav button.active .nav-icon {
+  background: var(--glass-raised);
+  border: 1px solid var(--border);
+  border-top-color: var(--edge);
+  color: var(--text);
+}
+
+.sidebar nav button.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 20px;
+  margin-top: -10px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
 }
 
 .sidebar nav button .nav-label {
@@ -170,48 +224,26 @@ body::before {
   opacity: 1;
 }
 
-.sidebar nav button:hover {
-  color: var(--text);
-}
-
-.sidebar nav button:hover .nav-icon {
-  background: var(--glass);
-}
-
-.sidebar nav button.active {
-  color: var(--text);
-}
-
-.sidebar nav button.active .nav-icon {
-  background: var(--accent-soft);
-  color: #c4b8ff;
-  box-shadow: inset 0 0 0 1px rgba(124, 92, 255, 0.35), 0 6px 20px rgba(124, 92, 255, 0.22);
-}
-
-.sidebar nav button.active .nav-label {
-  color: #c4b8ff;
-  font-weight: 600;
-}
-
-/* Tooltip for the collapsed state. */
+/* Tooltip for the collapsed rail. */
 .sidebar nav button::after {
   content: attr(data-label);
   position: absolute;
-  left: 68px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  background: #1a1a26;
+  left: 60px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(17, 19, 30, 0.92);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-soft);
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-4px);
-  transition: opacity 0.12s, transform 0.12s;
+  transition: opacity 0.12s ease, transform 0.12s ease;
   z-index: 20;
 }
-
 
 .sidebar:hover nav button::after {
   display: none;
@@ -243,7 +275,7 @@ body::before {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   color: var(--text-dim);
 }
 
@@ -260,8 +292,8 @@ body::before {
   flex: 1;
   min-width: 0;
   background: var(--glass);
-  color: var(--text);
-  border: 1px solid var(--border-soft);
+  color: var(--text-soft);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 6px 8px;
   font-size: 12px;
@@ -270,7 +302,7 @@ body::before {
      from swallowing clicks meant for the page. */
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.16s ease, border-color 0.15s;
+  transition: opacity 0.16s ease, border-color 0.15s ease;
 }
 
 .sidebar:hover .lang-switch select {
@@ -280,29 +312,6 @@ body::before {
 
 .sidebar:hover .lang-switch select:focus {
   border-color: var(--accent);
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-faint);
-  flex-shrink: 0;
-}
-
-.dot.good {
-  background: var(--good);
-  box-shadow: 0 0 10px var(--good);
-}
-
-.dot.warn {
-  background: var(--warn);
-  box-shadow: 0 0 10px var(--warn);
-}
-
-.dot.bad {
-  background: var(--bad);
-  box-shadow: 0 0 10px var(--bad);
 }
 
 /* ── Main column ─────────────────────────────────────────── */
@@ -319,9 +328,10 @@ body::before {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 32px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-1);
   flex-shrink: 0;
+  background: rgba(15, 18, 30, 0.35);
+  backdrop-filter: var(--blur);
+  border-bottom: 1px solid var(--border);
 }
 
 .topbar .crumb {
@@ -338,39 +348,66 @@ body::before {
 }
 
 .topbar .crumb .sep {
-  opacity: 0.5;
+  color: var(--text-faint);
+  opacity: 0.6;
 }
 
+/* ── Status chip ─────────────────────────────────────────── */
 .status-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 14px;
+  padding: 6px 12px;
   border-radius: 999px;
   font-size: 12.5px;
-  font-weight: 550;
-  background: var(--glass);
-  border: 1px solid var(--border-soft);
+  font-weight: 500;
   color: var(--text-dim);
+  background: var(--glass);
+  border: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .status-chip.good {
   color: var(--good);
-  border-color: rgba(52, 211, 153, 0.3);
-  background: rgba(52, 211, 153, 0.1);
+  background: var(--good-soft);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 
 .status-chip.warn {
   color: var(--warn);
-  border-color: rgba(251, 191, 36, 0.3);
-  background: rgba(251, 191, 36, 0.1);
+  background: var(--warn-soft);
+  border-color: rgba(251, 191, 36, 0.28);
 }
 
 .status-chip.bad {
   color: var(--bad);
-  border-color: rgba(251, 113, 133, 0.3);
-  background: rgba(251, 113, 133, 0.1);
+  background: var(--bad-soft);
+  border-color: rgba(251, 113, 133, 0.28);
+}
+
+/* The LED. A tight 1px ring plus a small halo — enough to read as "lit"
+   without becoming a glow effect. */
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.dot.good {
+  background: var(--good);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12), 0 0 8px rgba(52, 211, 153, 0.55);
+}
+
+.dot.warn {
+  background: var(--warn);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.12), 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+.dot.bad {
+  background: var(--bad);
+  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.12), 0 0 8px rgba(251, 113, 133, 0.5);
 }
 
 /* ── Content ─────────────────────────────────────────────── */
@@ -388,20 +425,31 @@ body::before {
   font-size: 24px;
   font-weight: 650;
   letter-spacing: -0.4px;
+  color: var(--text);
 }
 
 .subtitle {
-  color: var(--text-dim);
-  margin: 0 0 22px;
+  margin: 0 0 24px;
   font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ── Glass panel ─────────────────────────────────────────── */
+/* Every surface in the app is this one recipe. The bright top border is
+   what makes the pane read as glass rather than as a flat rectangle. */
+.card,
+.tile,
+.hero {
+  position: relative;
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  border-top-color: var(--edge);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .card {
-  /* Solid surface instead of glass: a flat fill separates the card from the
-     canvas more clearly and costs nothing to paint. */
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 16px;
 }
@@ -414,46 +462,61 @@ body::before {
   color: var(--text-dim);
 }
 
-/* ── Hero + stat tiles ───────────────────────────────────── */
+/* ── Hero ────────────────────────────────────────────────── */
 .hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  padding: 18px 20px;
+  padding: 20px 22px;
   margin-bottom: 16px;
-  background:
-    radial-gradient(600px 220px at 0% 0%, rgba(124, 92, 255, 0.14) 0%, transparent 70%),
-    var(--bg-1);
+  overflow: hidden;
+}
+
+/* A single soft wash inside the hero, so the panel has its own light
+   source and does not look pasted onto the canvas. */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 140% at 0% 0%,
+    rgba(139, 123, 255, 0.1) 0%,
+    transparent 60%
+  );
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hero .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
   font-size: 12.5px;
   font-weight: 500;
-  letter-spacing: 0.2px;
   color: var(--text-dim);
-  margin-bottom: 8px;
 }
 
 .hero .hero-title {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
   margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+  color: var(--text);
 }
 
 .hero .hero-title .accent {
-  /* Solid accent, not a gradient: one gradient headline is enough and this
-     one has to stay legible at 26px. */
-  color: #a89bff;
+  color: var(--accent);
 }
 
 .hero .hero-sub {
-  color: var(--text-dim);
-  font-size: 13px;
   margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
 }
 
+/* ── Stat tiles ──────────────────────────────────────────── */
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -462,49 +525,57 @@ body::before {
 }
 
 .tile {
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   padding: 14px 16px;
-  transition: border-color 0.15s;
+  transition: border-color 0.18s ease, background 0.18s ease;
 }
 
 .tile:hover {
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--glass-raised);
+  border-color: var(--border-strong);
+  border-top-color: var(--edge);
 }
 
 .tile .tile-label {
   display: flex;
   align-items: center;
   gap: 7px;
+  margin-bottom: 8px;
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.2px;
   color: var(--text-dim);
-  margin-bottom: 6px;
 }
 
 .tile .tile-value {
   font-size: 19px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.3px;
   font-variant-numeric: tabular-nums;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ── Rows ────────────────────────────────────────────────── */
+/* ── Key/value rows ──────────────────────────────────────── */
 .row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border-soft);
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
 }
 
 .row:last-child {
   border-bottom: none;
+}
+
+.row:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .row .label {
@@ -514,35 +585,43 @@ body::before {
 .row .value {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
+  color: var(--text-soft);
   /* A value that changes width on every poll would reflow the row; give it a
      stable box so the layout does not shift. */
   min-width: 4ch;
   text-align: right;
 }
 
+/* ── Badges ──────────────────────────────────────────────── */
+/* Neutral is the default: a disabled state should look disabled, not
+   alarming. Colour is reserved for states that need attention. */
 .pill {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
-  background: var(--bg-3);
-  color: var(--text-dim);
+  font-weight: 500;
+  color: var(--text-faint);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
 }
 
 .pill.good {
-  background: rgba(52, 211, 153, 0.14);
   color: var(--good);
+  background: var(--good-soft);
+  border-color: rgba(16, 185, 129, 0.24);
 }
 
 .pill.warn {
-  background: rgba(251, 191, 36, 0.14);
   color: var(--warn);
+  background: var(--warn-soft);
+  border-color: rgba(251, 191, 36, 0.24);
 }
 
 .pill.bad {
-  background: rgba(251, 113, 133, 0.14);
   color: var(--bad);
+  background: var(--bad-soft);
+  border-color: rgba(251, 113, 133, 0.24);
 }
 
 /* ── Forms ───────────────────────────────────────────────── */
@@ -554,14 +633,18 @@ body::before {
 input[type="text"],
 input:not([type]) {
   flex: 1;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: var(--radius-sm);
   padding: 9px 12px;
   font-size: 13.5px;
+  color: var(--text);
+  background: var(--glass-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input::placeholder {
+  color: var(--text-faint);
 }
 
 input:focus {
@@ -573,79 +656,44 @@ input[type="checkbox"] {
   accent-color: var(--accent);
 }
 
+/* Primary button: a light pane, not a gradient slab. The accent is used
+   for the focus ring and the label, which keeps the palette to two notes. */
 button {
-  background: var(--gradient);
-  color: #0a0a0f;
-  border: none;
-  border-radius: var(--radius-sm);
   padding: 9px 16px;
-  cursor: pointer;
   font-size: 13.5px;
-  font-weight: 650;
-  transition: box-shadow 0.15s, transform 0.05s, opacity 0.15s;
-  box-shadow: 0 6px 18px -8px rgba(124, 92, 255, 0.9);
+  font-weight: 600;
+  color: var(--text);
+  background: var(--glass-raised);
+  border: 1px solid var(--border-strong);
+  border-top-color: var(--edge);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-/* Hover used `filter: brightness()`, which forces the webview to re-rasterise
-   the button on every hover; a shadow swap is a cheap repaint. */
 button:hover:not(:disabled) {
-  box-shadow: 0 8px 24px -6px rgba(124, 92, 255, 1), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 button:active:not(:disabled) {
-  transform: translateY(1px);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
 }
 
 button.ghost {
-  background: var(--glass);
   color: var(--text-dim);
-  box-shadow: inset 0 0 0 1px var(--border-soft);
+  background: transparent;
+  border-color: var(--border);
 }
 
 button.ghost:hover:not(:disabled) {
-  background: var(--glass-strong);
   color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-
-/* ── Profile list ────────────────────────────────────────── */
-.profiles {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.profiles li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.profiles li:last-child {
-  border-bottom: none;
-}
-
-.profiles .name {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profiles .name.active {
-  color: var(--good);
-  font-weight: 600;
+  background: var(--glass);
 }
 
 .actions {
@@ -685,65 +733,53 @@ button.ghost:hover:not(:disabled) {
 }
 
 .logs {
-  margin: 0;
-  padding: 16px;
-  /* Fills the remaining height of the flex column instead of guessing at
-     the chrome height with a magic number. */
   flex: 1;
   min-height: 0;
+  margin: 0;
+  padding: 16px;
   overflow: auto;
-  background: rgba(0, 0, 0, 0.42);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
   font-size: 12.5px;
   line-height: 1.6;
-  color: #c9cde0;
+  color: var(--text-soft);
   white-space: pre-wrap;
   word-break: break-word;
+  background: var(--glass-sunken);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  border-top-color: var(--edge);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
-/* ── Misc ────────────────────────────────────────────────── */
-.kv {
+/* ── Lists ───────────────────────────────────────────────── */
+.kv,
+.issues {
   list-style: none;
   padding: 0;
   margin: 0 0 14px;
 }
 
-.kv li {
-  padding: 7px 0;
-  border-bottom: 1px solid var(--border-soft);
-  color: var(--text-dim);
-}
-
-.kv li:last-child {
-  border-bottom: none;
-}
-
-.issues {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 13px;
-}
-
+.kv li,
 .issues li {
-  padding: 7px 0;
-  border-bottom: 1px solid var(--border-soft);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 
+.kv li:last-child,
 .issues li:last-child {
   border-bottom: none;
 }
 
 .issues li.fix {
-  color: var(--warn);
   padding-left: 16px;
   font-size: 12.5px;
+  color: var(--warn);
 }
 
+/* ── Text helpers ────────────────────────────────────────── */
 .muted {
   color: var(--text-faint);
 }
@@ -761,23 +797,23 @@ button.ghost:hover:not(:disabled) {
 }
 
 .message {
-  color: var(--accent);
   font-size: 13px;
+  color: var(--text-soft);
 }
 
+/* ── Progress ────────────────────────────────────────────── */
 .progress {
   height: 6px;
-  background: rgba(0, 0, 0, 0.45);
-  border-radius: 999px;
-  overflow: hidden;
   margin-top: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .progress .bar {
   height: 100%;
-  background: var(--gradient);
   border-radius: 999px;
-  box-shadow: 0 0 14px rgba(124, 92, 255, 0.7);
+  background: var(--accent);
   transition: width 0.3s ease;
 }
 
@@ -795,23 +831,29 @@ button.ghost:hover:not(:disabled) {
   }
 }
 
+/* ── Update banner ───────────────────────────────────────── */
 .update-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: rgba(124, 92, 255, 0.1);
-  border: 1px solid rgba(124, 92, 255, 0.35);
-  border-radius: var(--radius);
   padding: 12px 16px;
   margin-bottom: 18px;
   font-size: 13.5px;
+  color: var(--text-soft);
+  background: var(--accent-soft);
+  backdrop-filter: var(--blur);
+  border: 1px solid rgba(139, 123, 255, 0.28);
+  border-top-color: rgba(139, 123, 255, 0.4);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .update-banner button {
   flex-shrink: 0;
 }
 
+/* ── Motion ──────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

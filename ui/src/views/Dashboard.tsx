@@ -12,7 +12,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function Pill({ on, onText = "ready", offText = "pending" }: { on: boolean; onText?: string; offText?: string }) {
-  return <span className={`pill ${on ? "good" : "warn"}`}>{on ? onText : offText}</span>;
+  return <span className={`pill ${on ? "good" : ""}`}>{on ? onText : offText}</span>;
 }
 
 // Memoised so the 2s status poll only re-renders the dashboard when the status
@@ -75,14 +75,17 @@ export const Dashboard = memo(function Dashboard({ status, error }: { status: St
       <p className="subtitle">{t("Live view of the engine.")}</p>
 
       <div className="hero">
-        <div className="eyebrow">{inGame ? t("In champ select") : t("Waiting for champ select")}</div>
+        <div className="eyebrow">
+          <span className={`dot ${inGame ? "good" : ""}`} />
+          {inGame ? t("In champ select") : t("Waiting for champ select")}
+        </div>
         <p className="hero-title">
           {champion !== null ? (
             <>
               {t("Champion ID")} <span className="accent">#{champion}</span>
             </>
           ) : (
-            <span className="accent">{t("No champion locked")}</span>
+            t("No champion locked")
           )}
         </p>
         <p className="hero-sub">
