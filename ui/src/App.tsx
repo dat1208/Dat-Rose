@@ -147,18 +147,18 @@ export function App() {
           ))}
         </nav>
         <div className="spacer" />
-        <div className="lang-switch">
+        <label className="lang-switch" title={t("Language")}>
           <span className="nav-icon">{icons.globe}</span>
-          <label htmlFor="lang">{t("Language")}</label>
+          <span className="sr-only">{t("Language")}</span>
           <select
-            id="lang"
             value={language}
+            aria-label={t("Language")}
             onChange={(e) => setLanguage(e.target.value as "en" | "vi")}
           >
             <option value="en">{t("English")}</option>
-            <option value="vi">{t("Tiáº¿ng Viá»‡t")}</option>
+            <option value="vi">{t("Tiếng Việt")}</option>
           </select>
-        </div>
+        </label>
       </aside>
       <div className="main">
         <header className="topbar">
