@@ -14,30 +14,30 @@
    ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* Canvas */
-  --bg-0: #0a0b10;
-  --bg-1: #11131e;
+  /* Canvas: deep teal-emerald, not neutral graphite. */
+  --bg-0: #05100f;
+  --bg-1: #0a1a19;
 
   /* Glass. `--glass` is the panel fill; `--glass-raised` is one step up for
      hover and for the active nav item. */
   --glass: rgba(255, 255, 255, 0.03);
   --glass-raised: rgba(255, 255, 255, 0.07);
-  --glass-sunken: rgba(8, 10, 18, 0.45);
+  --glass-sunken: rgba(4, 16, 15, 0.5);
 
   /* Hairlines. `--edge` is the bright top edge that sells the pane. */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --edge: rgba(255, 255, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --edge: rgba(255, 255, 255, 0.2);
 
   /* Text. All four pass WCAG AA on the glass fill. */
   --text: #ffffff;
-  --text-soft: #cbd5e1;
-  --text-dim: #94a3b8;
-  --text-faint: #64748b;
+  --text-soft: #cfe3df;
+  --text-dim: #9db4b1;
+  --text-faint: #6b8380;
 
   /* Accents */
-  --accent: #8b7bff;
-  --accent-soft: rgba(139, 123, 255, 0.14);
+  --accent: #2dd4bf;
+  --accent-soft: rgba(45, 212, 191, 0.14);
   --good: #34d399;
   --good-soft: rgba(16, 185, 129, 0.1);
   --warn: #fbbf24;
@@ -68,6 +68,7 @@ body,
 
 body {
   margin: 0;
+  overflow: hidden;
   background: var(--bg-0);
   color: var(--text);
   line-height: 1.5;
@@ -85,10 +86,10 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(45% 40% at 15% 10%, rgba(99, 102, 241, 0.2) 0%, transparent 70%),
-    radial-gradient(40% 35% at 88% 18%, rgba(56, 189, 248, 0.14) 0%, transparent 70%),
-    radial-gradient(45% 40% at 70% 95%, rgba(139, 92, 246, 0.16) 0%, transparent 70%),
-    radial-gradient(35% 30% at 8% 88%, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+    radial-gradient(48% 42% at 12% 8%, rgba(16, 185, 129, 0.26) 0%, transparent 70%),
+    radial-gradient(42% 38% at 90% 14%, rgba(45, 212, 191, 0.18) 0%, transparent 70%),
+    radial-gradient(50% 45% at 72% 96%, rgba(13, 148, 136, 0.22) 0%, transparent 70%),
+    radial-gradient(36% 32% at 6% 86%, rgba(52, 211, 153, 0.12) 0%, transparent 70%);
   filter: blur(120px);
 }
 
@@ -96,6 +97,9 @@ body::before {
 .app {
   display: flex;
   height: 100%;
+  /* Nothing in the shell may widen the window; every panel scrolls inside
+     its own box. */
+  overflow: hidden;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────── */
@@ -107,11 +111,14 @@ body::before {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  background: rgba(15, 18, 30, 0.4);
+  background: rgba(6, 24, 22, 0.45);
   backdrop-filter: var(--blur);
   border-right: 1px solid var(--border);
-  /* Visible so the collapsed-rail tooltips can escape the 72px column. */
-  overflow: visible;
+  /* The rail must clip: the nav labels and the language select are wider
+     than 72px, and with overflow visible they pushed the whole shell past
+     the window edge. Tooltips are rendered inside the rail instead of
+     escaping it. */
+  overflow: hidden;
   transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -225,23 +232,25 @@ body::before {
 }
 
 /* Tooltip for the collapsed rail. */
+/* The rail clips its children, so the label rides inside the button as a
+   small caption instead of a floating tooltip. */
 .sidebar nav button::after {
   content: attr(data-label);
   position: absolute;
-  left: 60px;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  background: rgba(17, 19, 30, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  color: var(--text-soft);
-  font-size: 12px;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 9px;
   font-weight: 500;
+  line-height: 1;
+  color: var(--text-faint);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-4px);
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition: opacity 0.12s ease;
   z-index: 20;
 }
 
@@ -251,7 +260,6 @@ body::before {
 
 .sidebar nav button:hover::after {
   opacity: 1;
-  transform: translateX(0);
 }
 
 .sidebar .spacer {
@@ -263,10 +271,12 @@ body::before {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 0 12px;
+  padding: 0;
   font-size: 12px;
   color: var(--text-dim);
   white-space: nowrap;
+  /* The select is hidden in the rail; it must not reserve width. */
+  overflow: hidden;
 }
 
 .lang-switch .nav-icon {
@@ -329,7 +339,7 @@ body::before {
   gap: 16px;
   padding: 14px 32px;
   flex-shrink: 0;
-  background: rgba(15, 18, 30, 0.35);
+  background: rgba(6, 24, 22, 0.4);
   backdrop-filter: var(--blur);
   border-bottom: 1px solid var(--border);
 }
@@ -414,7 +424,9 @@ body::before {
 .content {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   padding: 28px 32px 40px;
+  overflow-x: hidden;
   overflow-y: auto;
   /* Keep the scroll container out of the parent's layout/paint work. */
   contain: layout paint style;
@@ -452,6 +464,7 @@ body::before {
 .card {
   padding: 18px 20px;
   margin-bottom: 16px;
+  min-width: 0;
 }
 
 .card h3 {
@@ -466,6 +479,7 @@ body::before {
 .hero {
   padding: 20px 22px;
   margin-bottom: 16px;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -478,7 +492,7 @@ body::before {
   pointer-events: none;
   background: radial-gradient(
     120% 140% at 0% 0%,
-    rgba(139, 123, 255, 0.1) 0%,
+    rgba(45, 212, 191, 0.12) 0%,
     transparent 60%
   );
 }
@@ -496,6 +510,7 @@ body::before {
   font-size: 12.5px;
   font-weight: 500;
   color: var(--text-dim);
+  min-width: 0;
 }
 
 .hero .hero-title {
@@ -503,7 +518,9 @@ body::before {
   font-size: 26px;
   font-weight: 650;
   letter-spacing: -0.5px;
+  line-height: 1.25;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .hero .hero-title .accent {
@@ -526,6 +543,7 @@ body::before {
 
 .tile {
   padding: 14px 16px;
+  min-width: 0;
   transition: border-color 0.18s ease, background 0.18s ease;
 }
 
@@ -564,7 +582,9 @@ body::before {
   justify-content: space-between;
   gap: 16px;
   padding: 10px 8px;
-  margin: 0 -8px;
+  /* Inset the hover pill with padding only: a negative margin here widened
+     the card and produced a horizontal scrollbar. */
+  margin: 0;
   border-radius: var(--radius-sm);
   border-bottom: 1px solid var(--border);
   transition: background 0.15s ease;
@@ -580,9 +600,14 @@ body::before {
 
 .row .label {
   color: var(--text-dim);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .row .value {
+  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   color: var(--text-soft);
@@ -843,8 +868,8 @@ button.ghost:hover:not(:disabled) {
   color: var(--text-soft);
   background: var(--accent-soft);
   backdrop-filter: var(--blur);
-  border: 1px solid rgba(139, 123, 255, 0.28);
-  border-top-color: rgba(139, 123, 255, 0.4);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-top-color: rgba(45, 212, 191, 0.45);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
