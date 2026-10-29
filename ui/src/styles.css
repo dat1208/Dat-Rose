@@ -10,8 +10,10 @@
   --border: rgba(255, 255, 255, 0.1);
   --border-soft: rgba(255, 255, 255, 0.06);
   --text: #f2f3f8;
-  --text-dim: #a6a9bd;
-  --text-faint: #6c7086;
+  --text-dim: #b9bdcc;
+  /* Raised from #6c7086: the old value failed WCAG AA (about 4.0:1 on the
+     canvas, 3.5:1 on cards) and made every secondary label sink. */
+  --text-faint: #8b90a6;
   --violet: #7c5cff;
   --cyan: #22d3ee;
   --accent: #8b7bff;
@@ -21,8 +23,8 @@
   --good: #34d399;
   --warn: #fbbf24;
   --bad: #fb7185;
-  --radius: 16px;
-  --radius-sm: 10px;
+  --radius: 12px;
+  --radius-sm: 8px;
   color-scheme: dark;
   font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   font-size: 14px;
@@ -42,6 +44,7 @@ body {
   margin: 0;
   background: var(--bg-0);
   color: var(--text);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -55,9 +58,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(900px 520px at 12% -12%, rgba(124, 92, 255, 0.28) 0%, transparent 60%),
-    radial-gradient(800px 480px at 92% 4%, rgba(34, 211, 238, 0.16) 0%, transparent 62%),
-    radial-gradient(700px 500px at 60% 110%, rgba(124, 92, 255, 0.12) 0%, transparent 65%),
+    radial-gradient(900px 520px at 12% -12%, rgba(124, 92, 255, 0.16) 0%, transparent 60%),
+    radial-gradient(800px 480px at 92% 4%, rgba(34, 211, 238, 0.09) 0%, transparent 62%),
     var(--bg-0);
 }
 
@@ -71,9 +73,8 @@ body::before {
 .sidebar {
   width: 72px;
   flex-shrink: 0;
-  background: rgba(10, 10, 15, 0.6);
-  backdrop-filter: blur(20px);
-  border-right: 1px solid var(--border-soft);
+  background: var(--bg-1);
+  border-right: 1px solid var(--border);
   padding: 18px 0 16px;
   display: flex;
   flex-direction: column;
@@ -297,22 +298,11 @@ body::before {
 .dot.warn {
   background: var(--warn);
   box-shadow: 0 0 10px var(--warn);
-  animation: pulse 1.6s ease-in-out infinite;
 }
 
 .dot.bad {
   background: var(--bad);
   box-shadow: 0 0 10px var(--bad);
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
 }
 
 /* ── Main column ─────────────────────────────────────────── */
@@ -329,9 +319,8 @@ body::before {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 32px;
-  border-bottom: 1px solid var(--border-soft);
-  background: rgba(10, 10, 15, 0.45);
-  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
   flex-shrink: 0;
 }
 
@@ -402,28 +391,27 @@ body::before {
 }
 
 .subtitle {
-  color: var(--text-faint);
+  color: var(--text-dim);
   margin: 0 0 22px;
   font-size: 13px;
 }
 
 .card {
-  background: var(--glass);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-soft);
+  /* Solid surface instead of glass: a flat fill separates the card from the
+     canvas more clearly and costs nothing to paint. */
+  background: var(--bg-1);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.9);
 }
 
 .card h3 {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-faint);
+  letter-spacing: 0.2px;
+  color: var(--text-dim);
 }
 
 /* ── Hero + stat tiles ───────────────────────────────────── */
@@ -432,23 +420,19 @@ body::before {
   overflow: hidden;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  padding: 22px 24px;
+  padding: 18px 20px;
   margin-bottom: 16px;
   background:
-    radial-gradient(600px 220px at 0% 0%, rgba(124, 92, 255, 0.28) 0%, transparent 70%),
-    radial-gradient(500px 220px at 100% 100%, rgba(34, 211, 238, 0.18) 0%, transparent 70%),
-    rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 60px -30px rgba(124, 92, 255, 0.6);
+    radial-gradient(600px 220px at 0% 0%, rgba(124, 92, 255, 0.14) 0%, transparent 70%),
+    var(--bg-1);
 }
 
 .hero .eyebrow {
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
 }
 
 .hero .hero-title {
@@ -459,10 +443,9 @@ body::before {
 }
 
 .hero .hero-title .accent {
-  background: var(--gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  /* Solid accent, not a gradient: one gradient headline is enough and this
+     one has to stay legible at 26px. */
+  color: #a89bff;
 }
 
 .hero .hero-sub {
@@ -479,29 +462,26 @@ body::before {
 }
 
 .tile {
-  background: var(--glass);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-soft);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
-  transition: border-color 0.15s, transform 0.15s;
+  transition: border-color 0.15s;
 }
 
 .tile:hover {
-  border-color: var(--border);
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .tile .tile-label {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
 }
 
 .tile .tile-value {
@@ -713,7 +693,7 @@ button.ghost:hover:not(:disabled) {
   min-height: 0;
   overflow: auto;
   background: rgba(0, 0, 0, 0.42);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
   font-size: 12.5px;
@@ -820,13 +800,12 @@ button.ghost:hover:not(:disabled) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: linear-gradient(135deg, rgba(124, 92, 255, 0.18), rgba(34, 211, 238, 0.12));
-  border: 1px solid rgba(124, 92, 255, 0.45);
+  background: rgba(124, 92, 255, 0.1);
+  border: 1px solid rgba(124, 92, 255, 0.35);
   border-radius: var(--radius);
   padding: 12px 16px;
   margin-bottom: 18px;
   font-size: 13.5px;
-  backdrop-filter: blur(20px);
 }
 
 .update-banner button {
