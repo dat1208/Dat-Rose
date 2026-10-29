@@ -66,21 +66,58 @@ export const Dashboard = memo(function Dashboard({ status, error }: { status: St
   }
 
   const inGame = status.phase && status.phase !== "None" && status.phase !== "Lobby";
+  const champion = status.locked_champion_id ?? null;
+  const skin = status.selected_skin_id ?? null;
 
   return (
     <section>
       <h2>{t("Dashboard")}</h2>
       <p className="subtitle">{t("Live view of the engine.")}</p>
 
+      <div className="hero">
+        <div className="eyebrow">{inGame ? t("In champ select") : t("Waiting for champ select")}</div>
+        <p className="hero-title">
+          {champion !== null ? (
+            <>
+              {t("Champion ID")} <span className="accent">#{champion}</span>
+            </>
+          ) : (
+            <span className="accent">{t("No champion locked")}</span>
+          )}
+        </p>
+        <p className="hero-sub">
+          {skin !== null ? t("Selected skin: #{id}", { id: skin }) : t("Enter a champ select to pick a skin.")}
+        </p>
+      </div>
+
+      <div className="tiles">
+        <div className="tile">
+          <div className="tile-label">{t("Phase")}</div>
+          <div className="tile-value">{status.phase || "—"}</div>
+        </div>
+        <div className="tile">
+          <div className="tile-label">{t("Game mode")}</div>
+          <div className="tile-value">{status.current_game_mode || "—"}</div>
+        </div>
+        <div className="tile">
+          <div className="tile-label">{t("Historic mode")}</div>
+          <div className="tile-value">
+            <Pill on={!!status.historic_mode_active} onText={t("on")} offText={t("off")} />
+          </div>
+        </div>
+        <div className="tile">
+          <div className="tile-label">{t("Random mode")}</div>
+          <div className="tile-value">
+            <Pill on={!!status.random_mode_active} onText={t("on")} offText={t("off")} />
+          </div>
+        </div>
+      </div>
+
       <div className="card">
         <h3>{t("Session")}</h3>
         <Row label={t("App")} value={`${status.app} ${status.version}`} />
-        <Row label={t("Phase")} value={status.phase || "—"} />
-        <Row label={t("Game mode")} value={status.current_game_mode || "—"} />
-        <Row label={t("Locked champion")} value={status.locked_champion_id ?? "—"} />
-        <Row label={t("Selected skin")} value={status.selected_skin_id ?? "—"} />
-        <Row label={t("Historic mode")} value={<Pill on={!!status.historic_mode_active} onText={t("on")} offText={t("off")} />} />
-        <Row label={t("Random mode")} value={<Pill on={!!status.random_mode_active} onText={t("on")} offText={t("off")} />} />
+        <Row label={t("Locked champion")} value={champion ?? "—"} />
+        <Row label={t("Selected skin")} value={skin ?? "—"} />
         {!inGame && <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>{t("Enter a champ select to pick a skin.")}</p>}
       </div>
 

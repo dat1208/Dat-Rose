@@ -54,7 +54,7 @@ export function Logs() {
   }, [text, auto]);
 
   return (
-    <section>
+    <section className="logs-view">
       <h2>{t("Logs")}</h2>
       <p className="subtitle">{t("Live engine output, newest at the bottom.")}</p>
       <div className="logbar">
