@@ -47,20 +47,26 @@ PATCHER_FILES = (LTK_PATCHER_HOST, LTK_PATCHER_DLL)
 # The one place the patcher binaries are pinned. Update all three fields per
 # file together, after re-downloading the commit and re-hashing it by hand.
 #
-# Pinned to 08468a32, not to the newest commit. From 46198022 onward the DLL
-# checks the process that started the game against a hardcoded allowlist
-# (ltk_patcher_host.exe, ltk-manager.exe, explorer.exe) and refuses the overlay
-# with "host verification failed, refusing overlay: [VRF00000008]" when the
-# parent is anything else. D-Changer's engine spawns the host itself, so the
-# parent is dchanger-backend.exe, which is not on that list: every injection
-# with a newer DLL fails and the game runs with the stock skin. This pair has
-# no such check and is what Rose itself ships.
+# Pinned to 46198022, the last DLL that does not check who started the game.
+# From a59a336b onward the DLL verifies the parent process against a hardcoded
+# allowlist (ltk_patcher_host.exe, ltk-manager.exe, explorer.exe) and refuses
+# the overlay with "host verification failed, refusing overlay: [VRF00000008]"
+# when the parent is anything else. D-Changer's engine spawns the host itself,
+# so the parent is dchanger-backend.exe, which is not on that list: every
+# injection with a newer DLL fails and the game runs with the stock skin.
+# 46198022 has no such check (it predates a59a336b) and is also the first DLL
+# that reads the 8-byte-hash skin bins League has shipped since patch 26.21.
 #
-# The cost: this DLL's built-in end-of-life date is 2026-10-18, already past.
-# It still works until League ships a build newer than that date, at which
-# point injection stops and the pin has to move to a DLL that accepts a
-# D-Changer host.
-PIN_COMMIT = "08468a32392f43dc604ebf7a8fcaf05c2bbeacb9"
+# The host binary is unchanged since 08468a32, so 46198022 carries no host of
+# its own and this pin keeps the 08468a32 host: same file, same hash.
+#
+# The cost: this DLL's built-in end-of-life date is 2026-11-01 14:00 UTC. Once
+# League ships a build newer than that, the DLL logs "end of life reached" and
+# returns from its entry point without hooking anything, so the game runs with
+# the stock skin. The pin then has to move to a newer DLL, which means solving
+# the host verification check first. .github/workflows/ltk-patcher-watch.yml
+# watches for that and opens an issue.
+PIN_COMMIT = "46198022a825448775c4588c06cc7c2d81a883d9"
 PIN_DIR = "src-tauri/resources"
 PIN = {
     LTK_PATCHER_HOST: (
@@ -68,8 +74,8 @@ PIN = {
         1238272,
     ),
     LTK_PATCHER_DLL: (
-        "6d419057e6667994ba752ad0fb089b363db98267618644d7f7b6632441a21d74",
-        764160,
+        "26aa7f8d5790c5bb39b45cfeef8251149d47d5dfb7fe43648aa774d5e6bb42fa",
+        754688,
     ),
 }
 

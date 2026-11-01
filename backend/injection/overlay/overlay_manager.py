@@ -495,10 +495,16 @@ class OverlayManager:
                         session["error"] = line
                         log.error(f"[INJECT] LTK patcher error: {line}")
                     elif parts[0] == "dll" and END_OF_LIFE_MESSAGE in line:
-                        # The DLL refuses game builds newer than its end-of-life date
+                        # The pinned DLL does refuse game builds newer than its
+                        # compiled end-of-life date (it logs this and returns
+                        # from its entry point), so injection really did not
+                        # happen. Report it as an expired patcher.
                         session["error"] = line
                         session["eol"] = True
-                        log.error("[INJECT] LTK patcher DLL reached its end of life for this game build")
+                        log.error(
+                            "[INJECT] LTK patcher DLL refused this game build: "
+                            "its end-of-life date is older than the game"
+                        )
                     elif parts[0] == "dll" and LATE_JOIN_MESSAGE in line:
                         # The game was launched before the host started scanning
                         session["error"] = LATE_JOIN_ERROR

@@ -6,10 +6,16 @@ only usable when it is Authenticode-signed and does not carry the host
 verification check, which refuses D-Changer as the process that started the
 game. This script walks the commits that touched src-tauri/resources, downloads
 each DLL, and reports the newest one that passes both tests and has a later
-end-of-life date than the pinned one.
+end-of-life date than the pinned one. A commit that ships no host binary of
+its own is tested with the pinned host, since the host has not changed since
+08468a32.
+
+It also reports the pin itself when its end-of-life date is close, because the
+pinned DLL refuses game builds newer than that date and injection stops until
+a replacement is found.
 
 Run by .github/workflows/ltk-patcher-watch.yml on a schedule. Exit code 0 means
-"nothing to do"; 1 means a better pair exists and the pin should be updated.
+"nothing to do"; 1 means a better DLL exists or the pin is about to expire, and`nthe pin should be updated.
 
 Usage:
     python scripts/check_ltk_patcher.py [--json]
@@ -25,6 +31,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -58,14 +65,21 @@ def _raw(commit: str, name: str) -> bytes:
     return _get(f"https://raw.githubusercontent.com/{REPO}/{commit}/{RESOURCES}/{name}")
 
 
-def _pinned() -> tuple[str, str, int]:
-    """(commit, dll sha256, dll size) from the pin table."""
+def _pinned() -> tuple[str, str, int, str, int]:
+    """(commit, dll sha256, dll size, host sha256, host size) from the pin table."""
     text = PIN_FILE.read_text(encoding="utf-8")
     commit = re.search(r'PIN_COMMIT = "([0-9a-f]{40})"', text)
     dll = re.search(r'LTK_PATCHER_DLL: \(\s*"([0-9a-f]{64})",\s*(\d+),', text)
-    if not commit or not dll:
+    host = re.search(r'LTK_PATCHER_HOST: \(\s*"([0-9a-f]{64})",\s*(\d+),', text)
+    if not commit or not dll or not host:
         raise SystemExit(f"could not read the pin from {PIN_FILE}")
-    return commit.group(1), dll.group(1), int(dll.group(2))
+    return (
+        commit.group(1),
+        dll.group(1),
+        int(dll.group(2)),
+        host.group(1),
+        int(host.group(2)),
+    )
 
 
 def is_signed(path: Path) -> bool:
@@ -90,8 +104,13 @@ def candidates() -> list[str]:
     return [c["sha"] for c in _api(f"commits?path={RESOURCES}&per_page=30")]
 
 
-def evaluate(commit: str, workdir: Path) -> dict | None:
-    """Download and test one commit's pair. None when it cannot be used."""
+def evaluate(commit: str, workdir: Path, pinned_host: bytes) -> dict | None:
+    """Download and test one commit's DLL. None when it cannot be used.
+
+    A commit only has to ship a DLL: the host binary is unchanged since
+    08468a32, so commits that only touch the DLL (46198022 is one) carry no
+    host of their own and the pinned host is used with them.
+    """
     try:
         dll = _raw(commit, DLL)
     except OSError as e:
@@ -115,17 +134,19 @@ def evaluate(commit: str, workdir: Path) -> dict | None:
 
     try:
         host = _raw(commit, HOST)
-    except OSError as e:
-        print(f"  {commit[:10]}: no host at this commit ({e})")
-        return None
+        host_source = "commit"
+    except OSError:
+        host = pinned_host
+        host_source = "pin"
 
-    print(f"  {commit[:10]}: usable, EOL {eol}")
+    print(f"  {commit[:10]}: usable, EOL {eol}, host from {host_source}")
     return {
         "commit": commit,
         "dll_sha256": hashlib.sha256(dll).hexdigest(),
         "dll_size": len(dll),
         "host_sha256": hashlib.sha256(host).hexdigest(),
         "host_size": len(host),
+        "host_source": host_source,
         "eol": eol,
     }
 
@@ -133,17 +154,39 @@ def evaluate(commit: str, workdir: Path) -> dict | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", metavar="PATH", help="write the result as JSON to PATH")
+    parser.add_argument(
+        "--warn-days",
+        type=int,
+        default=14,
+        help="report the pin as expiring when its EOL is this close (default 14)",
+    )
     args = parser.parse_args()
 
-    pinned_commit, _, pinned_size = _pinned()
+    pinned_commit, _, pinned_size, _, _ = _pinned()
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
         pinned_path = workdir / "pinned.dll"
-        pinned_path.write_bytes(_raw(pinned_commit, DLL))
+        pinned_dll = _raw(pinned_commit, DLL)
+        pinned_path.write_bytes(pinned_dll)
         pinned_eol = read_dll_eol(pinned_path)
+        pinned_host = _raw(pinned_commit, HOST)
     print(f"pinned: {pinned_commit[:10]} ({pinned_size} bytes), EOL {pinned_eol}")
     if pinned_eol is None:
         raise SystemExit("could not read the end-of-life date of the pinned DLL")
+
+    # The pinned DLL refuses any game build newer than its EOL date, so a pin
+    # that is close to expiring is worth an issue even before a replacement
+    # exists: the fix takes a new DLL plus a real injection test.
+    now = int(time.time())
+    seconds_left = pinned_eol - now
+    days_left = seconds_left // 86400
+    expiring = seconds_left <= args.warn_days * 86400
+    if expiring:
+        when = time.strftime("%Y-%m-%d %H:%M", time.gmtime(pinned_eol))
+        if seconds_left <= 0:
+            print(f"the pinned DLL expired on {when} UTC: injection is already broken")
+        else:
+            print(f"the pinned DLL expires in {days_left} day(s) ({when} UTC)")
 
     print("checking commits that touched the resources folder:")
     with tempfile.TemporaryDirectory() as tmp:
@@ -151,23 +194,41 @@ def main() -> int:
         for commit in candidates():
             if commit == pinned_commit:
                 continue
-            result = evaluate(commit, workdir)
+            result = evaluate(commit, workdir, pinned_host)
             if result and result["eol"] > pinned_eol:
                 result["pinned_commit"] = pinned_commit
                 result["pinned_eol"] = pinned_eol
+                result["pinned_expiring"] = expiring
+                result["pinned_days_left"] = days_left
                 if args.json:
                     Path(args.json).write_text(json.dumps(result, indent=2), encoding="utf-8")
                 print(
-                    f"\nA better pair exists: {result['commit']}\n"
-                    f"  host sha256: {result['host_sha256']}  ({result['host_size']} bytes)\n"
+                    f"\nA better DLL exists: {result['commit']}\n"
                     f"  dll  sha256: {result['dll_sha256']}  ({result['dll_size']} bytes)\n"
+                    f"  host sha256: {result['host_sha256']}  ({result['host_size']} bytes, "
+                    f"from {result['host_source']})\n"
                     f"  EOL:         {result['eol']} (pinned {pinned_eol})\n"
-                    "Update PIN_COMMIT and both hashes in "
+                    "Update PIN_COMMIT and the DLL hash in "
                     "backend/updater/ltk_patcher.py, then test an injection."
                 )
                 return 1
 
-    print("\nNo usable pair newer than the pin.")
+    if expiring:
+        result = {
+            "pinned_commit": pinned_commit,
+            "pinned_eol": pinned_eol,
+            "pinned_days_left": days_left,
+            "pinned_expiring": True,
+        }
+        if args.json:
+            Path(args.json).write_text(json.dumps(result, indent=2), encoding="utf-8")
+        print(
+            "\nNo usable replacement yet, but the pinned DLL is about to expire. "
+            "Injection stops once League ships a build newer than its EOL date."
+        )
+        return 1
+
+    print("\nNo usable DLL newer than the pin.")
     return 0
 
 

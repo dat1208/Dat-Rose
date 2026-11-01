@@ -44,21 +44,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python scripts/check_ltk_patcher.py --json "$env:RUNNER_TEMP/ltk-pin.json"
-          # Exit code 1 means a better pair exists; 0 means the pin is current.
+          # Exit code 1 means a better DLL exists, or the pin is about to expire.
           if ($LASTEXITCODE -eq 1) {
             "found=true" >> $env:GITHUB_OUTPUT
           } else {
             "found=false" >> $env:GITHUB_OUTPUT
           }
 
-      - name: Open an issue when a better pair exists
+      - name: Open an issue when a better DLL exists or the pin is expiring
         if: steps.check.outputs.found == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DETAILS_PATH: ${{ runner.temp }}/ltk-pin.json
         run: |
-          $title = "LTK patcher: a newer usable pair is available"
+          $title = "LTK patcher: the pin needs attention"
           $existing = gh issue list --state open --search "$title in:title" --json number --jq '.[0].number'
           if ($existing) {
             Write-Output "Issue #$existing already tracks this; not opening another."
@@ -66,8 +66,9 @@ jobs:
           }
           $details = Get-Content $env:DETAILS_PATH -Raw
           $body = @"
-          `scripts/check_ltk_patcher.py` found a patcher pair that D-Changer can use
-          and whose end-of-life date is later than the pinned one.
+          `scripts/check_ltk_patcher.py` reports that the pinned LTK patcher needs
+          attention: either a DLL D-Changer can use has a later end-of-life date,
+          or the pinned DLL is about to expire.
 
           ```json
           $details
@@ -75,8 +76,9 @@ jobs:
 
           To update:
 
-          1. Re-download both files from the commit above and re-hash them by hand.
-          2. Update `PIN_COMMIT` and both hashes in `backend/updater/ltk_patcher.py`.
+          1. Download the DLL from the commit above and re-hash it by hand.
+          2. Update `PIN_COMMIT` and the DLL hash/size in `backend/updater/ltk_patcher.py`.
+             Keep the host entry unless the commit ships a new host of its own.
           3. **Test an actual injection.** A DLL can pass every automated check and
              still refuse D-Changer as its host.
           4. Bump the version and tag a release.
