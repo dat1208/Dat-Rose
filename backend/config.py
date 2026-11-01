@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 # APPLICATION METADATA
 # =============================================================================
 
-APP_VERSION = "1.4.9"                           # Application version
+APP_VERSION = "1.4.10"                           # Application version
 APP_NAME = "D-Changer"                          # Product name (data dir, mutex, logs, tray)
 APP_USER_AGENT = f"{APP_NAME}/{APP_VERSION}"  # User-Agent header for HTTP requests
 GAME_EXECUTABLE_NAMES = ("League of Legends.exe", "League of Legends (TM) Client.exe")
