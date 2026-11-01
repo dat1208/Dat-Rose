@@ -304,9 +304,17 @@ def _check_dll_present() -> bool:
     # block when the game Rose last found is a build it refuses
     league_path = get_config_option("General", "leaguePath")
     game_dir = Path(league_path) if league_path else None
+    # The pinned DLL has no end-of-life check of its own (see
+    # updater/ltk_patcher.py), so an EOL date older than the installed game is
+    # only a warning. Blocking here would stop Rose from starting after every
+    # game patch even though injection still works; the patcher reports a real
+    # refusal itself when the game starts.
     if status.expired_for(game_dir):
         eol = datetime.fromtimestamp(status.eol).strftime("%Y-%m-%d %H:%M")
-        return _show_dll_dialog(tools_dir, reason="expired", detail=eol)
+        log.warning(
+            f"LTK patcher EOL date ({eol}) is older than the installed game build; "
+            "starting anyway (the pinned DLL does not enforce it)"
+        )
     _warn_patcher_expiring_soon(status, game_dir)
     return True
 

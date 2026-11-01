@@ -260,13 +260,18 @@ class OverlayManager:
             )
             return 1
 
-        # League may have updated past the DLL's end of life since Rose started
+        # League may have updated past the DLL's end of life since Rose started.
+        # Only a warning: the pinned DLL has no end-of-life check of its own
+        # (see updater/ltk_patcher.py), so refusing here would block every
+        # injection after a game patch even though the DLL still works. The
+        # patcher reports a refusal itself when it really cannot overlay.
         patcher = check_ltk_patcher(ltk_host.parent)
         if patcher.expired_for(self.game_dir):
             eol = time.strftime("%Y-%m-%d %H:%M", time.localtime(patcher.eol))
-            log.error(f"[INJECT] LTK patcher does not support game builds after {eol}")
-            self._report_ltk_patcher_eol(eol)
-            return 1
+            log.warning(
+                f"[INJECT] LTK patcher EOL date ({eol}) is older than this game build; "
+                "injecting anyway (the pinned DLL does not enforce it)"
+            )
 
         # The DLL only overlays games launched after the scan started, so the
         # host must already be scanning when the game starts
@@ -422,7 +427,9 @@ class OverlayManager:
                 self._early_patcher = None
             from ..tools.tools_manager import ToolsManager
             ltk_host = ToolsManager(self.tools_dir).detect_ltk_patcher()
-            if not ltk_host or check_ltk_patcher(ltk_host.parent).expired_for(self.game_dir):
+            # No EOL gate here: the pinned DLL does not enforce its date, so a
+            # stale date must not stop the patcher from scanning for the game.
+            if not ltk_host:
                 return
             overlay_dir = self.mods_dir.parent / "overlay"
             overlay_dir.mkdir(parents=True, exist_ok=True)
